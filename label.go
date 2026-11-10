@@ -176,7 +176,7 @@ func (e *item) constrain(l *label) {
 }
 
 // prepareSymbol 校验码值并缓存用于绘制的黑色模块
-func (e *item) prepareSymbol(g *macGraphics) {
+func (e *item) prepareSymbol(g *labelGraphics) {
 	e.symbol, e.issue = nil, nil
 	if e.Value == "" {
 		e.issue = fmt.Errorf("请输入编码内容")
@@ -307,7 +307,7 @@ func (e *item) paintSymbol(p *ui.Painter, rect ui.Rect, black, white ui.Color, p
 }
 
 // render 按选定 DPI 生成打印位图并检查码的点阵大小
-func (l *label) render() (image.Image, error) {
+func (l *label) render() (*image.RGBA, error) {
 	if len(l.Items) == 0 {
 		return nil, fmt.Errorf("请先添加标签内容")
 	}

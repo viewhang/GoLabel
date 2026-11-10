@@ -1,10 +1,8 @@
 package main
 
 import (
-	"cmp"
 	"sync"
 
-	"github.com/ebitengine/purego/objc"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -22,22 +20,22 @@ type fontMenu struct {
 	familyByName map[string]string
 }
 
-// labelFonts 返回带本地化名称的可用字体菜单
-var labelFonts = sync.OnceValue(func() fontMenu {
-	defer macPool()()
-	manager := macSend[objc.ID](macClass("NSFontManager"), "sharedFontManager")
+// labelFonts 缓存系统字体菜单
+var labelFonts = sync.OnceValue(systemFontMenu)
+
+// makeFontMenu 枚举系统字体并建立显示名和字体族名的对应关系
+func makeFontMenu(displayName func(string) string) fontMenu {
 	menu := fontMenu{
 		options:      []string{defaultFontName},
 		nameByFamily: map[string]string{"": defaultFontName},
 		familyByName: map[string]string{defaultFontName: ""},
 	}
 	for _, font := range ui.FontFamilies() {
-		name := font.Name
+		var name string
 		if font.Name == sourceHanFamily {
 			name = "思源黑体"
 		} else {
-			local := macSend[objc.ID](manager, "localizedNameForFamily:face:", macString(font.Name), objc.ID(0))
-			name = cmp.Or(macSend[string](local, "UTF8String"), name)
+			name = displayName(font.Name)
 		}
 		if _, exists := menu.familyByName[name]; exists {
 			name += "（" + font.Name + "）"
@@ -46,4 +44,4 @@ var labelFonts = sync.OnceValue(func() fontMenu {
 		menu.nameByFamily[font.Name], menu.familyByName[name] = name, font.Name
 	}
 	return menu
-})
+}

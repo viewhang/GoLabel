@@ -10,7 +10,7 @@ import (
 
 // main 注册标签模板和 MyGo 原生编辑窗口
 func main() {
-	graphics, err := openMacGraphics()
+	graphics, err := openGraphics()
 	if err != nil {
 		log.Fatal(err)
 	}

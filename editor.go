@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"os"
 	"slices"
@@ -29,7 +28,7 @@ const (
 type editor struct {
 	document  *mygo.Document[*label]
 	documents *mygo.Documents[*label]
-	graphics  *macGraphics
+	graphics  *labelGraphics
 	window    *mygo.Window
 	label     *label
 	selected  int
@@ -692,9 +691,8 @@ func (e *editor) exportPDF() error {
 	if err != nil || path == "" {
 		return err
 	}
-	defer macPool()()
-	if !macSend[bool](macData(data), "writeToFile:atomically:", macString(path), true) {
-		return fmt.Errorf("无法写入 PDF 文件")
+	if err := writePDFFile(path, data); err != nil {
+		return err
 	}
 	e.status = "已导出 PDF"
 	return nil
@@ -702,9 +700,9 @@ func (e *editor) exportPDF() error {
 
 // print 打开系统打印面板并显示提交结果
 func (e *editor) print() error {
-	sent, err := e.graphics.print(e.label, e.document.Name())
+	sent, err := e.graphics.print(e.label, e.document.Name(), e.window.NativeHandle())
 	if sent {
-		e.status = "系统打印操作已完成"
+		e.status = "已提交打印任务"
 	}
 	return err
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"image"
 	"image/png"
@@ -25,8 +26,8 @@ type cgRect struct {
 	X, Y, W, H float64
 }
 
-// macGraphics 持有条码生成器和 PDF 绘制接口
-type macGraphics struct {
+// labelGraphics 持有条码生成器和 PDF 绘制接口
+type labelGraphics struct {
 	ci objc.ID
 
 	createImage func(objc.ID, objc.SEL, objc.ID, cgRect) uintptr
@@ -45,8 +46,8 @@ type macGraphics struct {
 	releaseImage     func(uintptr)
 }
 
-// openMacGraphics 加载标签渲染和系统打印所需的 Apple 框架
-func openMacGraphics() (*macGraphics, error) {
+// openGraphics 加载标签渲染和系统打印所需的 Apple 框架
+func openGraphics() (*labelGraphics, error) {
 	for _, name := range []string{"AppKit", "CoreImage", "PDFKit"} {
 		if _, err := purego.Dlopen("/System/Library/Frameworks/"+name+".framework/"+name, purego.RTLD_LAZY|purego.RTLD_LOCAL); err != nil {
 			return nil, err
@@ -60,7 +61,7 @@ func openMacGraphics() (*macGraphics, error) {
 	if err != nil {
 		return nil, err
 	}
-	g := &macGraphics{}
+	g := &labelGraphics{}
 	purego.RegisterLibFunc(&g.createImage, runtimeLibrary, "objc_msgSend")
 	purego.RegisterLibFunc(&g.setSize, runtimeLibrary, "objc_msgSend")
 	purego.RegisterLibFunc(&g.setMargin, runtimeLibrary, "objc_msgSend")
@@ -112,8 +113,18 @@ func macPool() func() {
 	return func() { macSend[objc.ID](pool, "drain") }
 }
 
+// systemFontMenu 使用字体的本地化名称生成字体菜单
+func systemFontMenu() fontMenu {
+	defer macPool()()
+	manager := macSend[objc.ID](macClass("NSFontManager"), "sharedFontManager")
+	return makeFontMenu(func(family string) string {
+		local := macSend[objc.ID](manager, "localizedNameForFamily:face:", macString(family), objc.ID(0))
+		return cmp.Or(macSend[string](local, "UTF8String"), family)
+	})
+}
+
 // symbolImage 用 Core Image 生成原始条码或二维码模块
-func (g *macGraphics) symbolImage(kind itemKind, value string) (image.Image, error) {
+func (g *labelGraphics) symbolImage(kind itemKind, value string) (image.Image, error) {
 	defer macPool()()
 	if g.ci == 0 {
 		useSoftware := macSend[objc.ID](macClass("NSNumber"), "numberWithBool:", true)
@@ -155,7 +166,7 @@ func pageSize(l *label) cgSize {
 }
 
 // pdf 生成尺寸与标签一致的单页 PDF
-func (g *macGraphics) pdf(l *label) ([]byte, error) {
+func (g *labelGraphics) pdf(l *label) ([]byte, error) {
 	raster, err := l.render()
 	if err != nil {
 		return nil, err
@@ -189,8 +200,17 @@ func (g *macGraphics) pdf(l *label) ([]byte, error) {
 	return copyMacData(data), nil
 }
 
+// writePDFFile 原子写入导出的 PDF
+func writePDFFile(path string, data []byte) error {
+	defer macPool()()
+	if !macSend[bool](macData(data), "writeToFile:atomically:", macString(path), true) {
+		return fmt.Errorf("无法写入 PDF 文件")
+	}
+	return nil
+}
+
 // print 打开 macOS 打印对话框并在用户确认后提交标签
-func (g *macGraphics) print(l *label, title string) (bool, error) {
+func (g *labelGraphics) print(l *label, title string, _ uintptr) (bool, error) {
 	pdf, err := g.pdf(l)
 	if err != nil {
 		return false, err

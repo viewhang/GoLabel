@@ -3,6 +3,9 @@
   "identifier": "com.pengh.golabel",
   "version": "0.1.0",
   "out": "build",
+  "fileAssociations": [
+    { "ext": ["golabel"], "name": "GoLabel 标签模板", "role": "Editor" }
+  ],
   "macos": {
     "infoPlist": {
       "CFBundleDevelopmentRegion": "zh-Hans",
