@@ -16,10 +16,17 @@ func main() {
 	}
 	mygo.App.SetName("GoLabel")
 	mygo.App.SetLanguages("zh-Hans")
+	loadPreferences()
 	var documents *mygo.Documents[*label]
 	documents = mygo.NewDocuments(mygo.DocumentsOptions[*label]{
-		Types:     []mygo.DocumentType{{Name: "GoLabel 标签模板", Extensions: []string{"golabel"}}},
-		New:       newLabel,
+		Types: []mygo.DocumentType{{Name: "GoLabel 标签模板", Extensions: []string{"golabel"}}},
+		New: func() *label {
+			// 新建对话框选好规格后先暂存，文档控制器创建时取用
+			if l := nextLabel.Swap(nil); l != nil {
+				return l
+			}
+			return newLabel()
+		},
 		Read:      readLabel,
 		Write:     writeLabel,
 		Snapshot:  (*label).snapshot,
@@ -28,7 +35,7 @@ func main() {
 		Window: func(document *mygo.Document[*label]) *mygo.Window {
 			e := &editor{document: document, documents: documents, graphics: graphics, selected: -1, zoom: 1}
 			e.window = mygo.NewWindow(mygo.WindowOptions{
-				Title: "GoLabel", Width: 1100, Height: 740, MinWidth: 800, MinHeight: 630,
+				Title: "GoLabel", Width: 1280, Height: 800, MinWidth: 980, MinHeight: 660,
 				Content: ui.View(e.view),
 			})
 			return e.window

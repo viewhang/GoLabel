@@ -16,6 +16,14 @@ go run .
 go run github.com/egoist/mygo/cmd/mygo build -skip-dmg
 ```
 
+默认只编译当前机器架构（Apple 芯片为 `darwin-arm64`）。要让同一份应用同时支持 Apple 芯片和 Intel Mac，改用通用包：
+
+```sh
+go run github.com/egoist/mygo/cmd/mygo build -platform darwin/universal -skip-dmg
+```
+
+产物在 `build/darwin-universal/GoLabel.app`，可直接拷贝到其他 Mac 使用。
+
 ## Windows 打包
 
 在项目目录运行以下命令，可在 Windows 本机编译，也可在 macOS 上交叉编译。生成 Setup 需要 [NSIS](https://nsis.sourceforge.io/)：Windows 上 MyGo 会在需要时下载；macOS 上先运行 `brew install makensis`。
@@ -33,7 +41,11 @@ go run github.com/egoist/mygo/cmd/mygo build -platform windows/amd64
 
 ## 使用
 
-左侧添加富文本、PNG/JPEG、Code 128 或二维码。文字属性支持格式、字体、字号、对齐和横排或竖排。拖动元素调整位置，拖动选框右下角调整大小，也可以在右侧输入毫米尺寸。保存为 `.golabel` 后可再次打开，图片会随模板保存。
+左侧添加富文本、PNG/JPEG、Code 128 或二维码。文字属性支持格式、字体、字号、对齐和横排或竖排。拖动元素调整位置，拖动四角手柄调整大小，也可以在右侧输入毫米尺寸。保存为 `.golabel` 后可再次打开，图片会随模板保存。
+
+顶栏的「模板」打开模板库，内置商品、食品、零售、物流、资产等六种标签样式，选中后可在右侧预览并「使用模板」新建同规格标签。
+
+顶栏的「设置」（macOS 也可以按 ⌘,）里有外观、默认尺寸、默认打印分辨率、显示网格和对齐吸附。偏好保存在本机配置目录，macOS 为 `~/Library/Application Support/GoLabel/settings.json`，Windows 为 `%AppData%\GoLabel\settings.json`，下次启动继续生效。设置左侧导航里的「模板库」与顶栏的「模板」是同一页。
 
 打印前安装标签打印机的系统驱动，并在 GoLabel 设置实际标签宽高和打印头 DPI。点击「打印」，在系统对话框选择打印机和份数，并在打印机属性中选用与标签匹配的纸型。首次先打一张，测量尺寸并扫描条码。
 

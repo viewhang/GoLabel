@@ -21,7 +21,10 @@ type fontMenu struct {
 }
 
 // labelFonts 缓存系统字体菜单
-var labelFonts = sync.OnceValue(systemFontMenu)
+var labelFonts = sync.OnceValue(func() fontMenu { return makeLabelFonts() })
+
+// makeLabelFonts 枚举系统字体；测试中替换为不访问原生字体服务的版本
+var makeLabelFonts = systemFontMenu
 
 // makeFontMenu 枚举系统字体并建立显示名和字体族名的对应关系
 func makeFontMenu(displayName func(string) string) fontMenu {

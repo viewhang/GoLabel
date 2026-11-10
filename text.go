@@ -54,10 +54,10 @@ func (e *editor) flushTextEdit() {
 		cell := a.cellValue(state.row, state.column)
 		if state.writeTo(&cell) {
 			a.setCell(state.row, state.column, cell)
-			e.document.Changed()
+			e.changed()
 		}
 	} else if state.writeTo(&a.labelText) {
-		e.document.Changed()
+		e.changed()
 	}
 }
 
@@ -123,14 +123,6 @@ func formatText(doc *richtext.Document, format func()) {
 	doc.SetSelection(anchor, caret)
 }
 
-// textStyleIcons 是文字样式工具栏的线条图标
-var textStyleIcons = [...]*ui.SVG{
-	propertyIcon("M6 4h7a4 4 0 0 1 0 8H6V4zm0 8h8a4 4 0 0 1 0 8H6v-8z"),
-	propertyIcon("M11 4h8M5 20h8m2-16L9 20"),
-	propertyIcon("M6 4v7a6 6 0 0 0 12 0V4M4 21h16"),
-	propertyIcon("M17 7a5 4 0 0 0-5-3c-3 0-5 1.7-5 4 0 1.5 1.1 2.8 3 3.5m4 1c2 .8 3 2 3 3.5 0 2.3-2 4-5 4a5 4 0 0 1-5-3M4 12h16"),
-}
-
 // horizontalAlignIcons 是左对齐、水平居中和右对齐图标
 var horizontalAlignIcons = [...]*ui.SVG{
 	propertyIcon("M4 5h16M4 10h10M4 14h16M4 19h10"),
@@ -145,26 +137,22 @@ var verticalAlignIcons = [...]*ui.SVG{
 	propertyIcon("M4 20h16m-8-5V4m-5 6 5 5 5-5"),
 }
 
-// removeElementIcon 是属性栏的删除元素图标
-var removeElementIcon = propertyIcon("M5 7h14m-9-3h4M7 7l1 13h8l1-13m-6 3v6m2-6v6")
-
 // propertyIcon 创建由原生界面着色的属性栏图标
 func propertyIcon(path string) *ui.SVG {
-	return ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="` + path + `"/></svg>`))
+	return ui.MustParseSVG([]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="` + path + `"/></svg>`))
 }
 
 // propertyButton 显示带提示和选中态的紧凑图标按钮
 func propertyButton(c *ui.Context, label string, icon *ui.SVG, selected bool) bool {
 	t := c.Theme()
-	button := ui.ButtonBase(c.Key(label)).Size(26, 26).Radius(5).Label(label).Tooltip(label).
+	button := ui.ButtonBase(c.Key(label)).Size(30, 30).Radius(6).Label(label).Tooltip(label).
 		Role(ui.RoleButton).AccessSelected(selected)
-	color := t.TextMuted
+	color := ui.Hex("#475467")
 	if selected {
-		button.Background(t.SurfacePressed)
-		color = t.Text
+		button.Background(ui.Hex(colorPanel)).Shadow(0, 1, 2, 0, ui.RGBA(16, 24, 40, 0.08))
+		color = t.Accent
 	} else if button.Hovered() {
-		button.Background(t.SurfaceHover)
-		color = t.Text
+		button.Background(ui.Hex("#E9EEF5"))
 	}
 	button.Children(func() { ui.Icon(c, icon).Size(15, 15).TextColor(color) })
 	return button.Clicked()
@@ -172,8 +160,8 @@ func propertyButton(c *ui.Context, label string, icon *ui.SVG, selected bool) bo
 
 // alignmentGroup 显示单轴的三个对齐图标并更新所选值
 func alignmentGroup(c *ui.Context, labels [3]string, icons [3]*ui.SVG, value *ui.Align) {
-	t := c.Theme()
-	ui.Row(c).Grow(1).Padding(2).Gap(2).Justify(ui.SpaceBetween).Radius(7).Background(t.Surface).Children(func() {
+	ui.Row(c).Grow(1).Padding(2).Gap(2).Justify(ui.SpaceBetween).Radius(7).
+		Background(ui.Hex(colorChip)).Children(func() {
 		for i, label := range labels {
 			if propertyButton(c, label, icons[i], *value == ui.Align(i)) {
 				*value = ui.Align(i)
@@ -182,53 +170,44 @@ func alignmentGroup(c *ui.Context, labels [3]string, icons [3]*ui.SVG, value *ui
 	})
 }
 
-// textProperties 构建文字编辑、字体工具栏和书写方向
+// textProperties 构建文字内容、字体、字形和对齐设置
 func (e *editor) textProperties(c *ui.Context, element *labelText) bool {
-	panel := ui.Column(c.Key("text-format")).FillWidth().Gap(7)
+	if e.textEdit == nil {
+		e.textEdit = newTextEdit(*element)
+	}
+	panel := ui.Column(c.Key("text-format")).FillWidth().Gap(8)
 	state := e.textEdit
 	doc := state.doc
 	changed := false
 	panel.Children(func() {
-		t := c.Theme()
 		font := ui.Font{Size: float32(element.FontSize / millimetersPerPoint)}
+		sectionHeading(c, "内容")
 		if !e.inline {
 			richtext.EditorBase(c.Key("text"), doc, richtext.EditorOptions{
 				Label: "文字内容", Placeholder: "输入文字", Font: font, NoMarkdown: true,
-				Theme: &richtext.Theme{Padding: [2]float32{8, 7}},
-			}).FillWidth().Height(46).Shrink(0).Radius(6).Border(1, t.Border).Background(t.Surface)
+				Theme: &richtext.Theme{Padding: [2]float32{8, 9}},
+			}).FillWidth().Height(66).Shrink(0).Radius(8).Border(1, ui.Hex(colorFieldBorder)).
+				Background(ui.Hex(colorFieldBg))
 		}
+
+		hairline(c.Key("divider"))
 
 		formats := doc.Formatting()
 		fonts := labelFonts()
 		name := cmp.Or(fonts.nameByFamily[formats.Attributes.Font], formats.Attributes.Font)
 		fontDownloadHeading(c.Key("font-heading"))
-		if ui.Combobox(c.Key("font"), &name, fonts.options).FillWidth().Height(28).Label("字体").Changed() {
-			family := fonts.familyByName[name]
-			formatText(doc, func() { doc.Format(func(a *richtext.Attributes) { a.Font = family }) })
-		}
-
-		ui.Row(c.Key("styles")).Gap(2).AlignItems(ui.Center).Children(func() {
-			for i, style := range []struct {
-				title  string
-				state  richtext.FormatState
-				toggle func()
-			}{
-				{"加粗", formats.Bold, doc.ToggleBold},
-				{"斜体", formats.Italic, doc.ToggleItalic},
-				{"下划线", formats.Underline, doc.ToggleUnderline},
-				{"删除线", formats.Strikethrough, doc.ToggleStrikethrough},
-			} {
-				if propertyButton(c, style.title, textStyleIcons[i], style.state == richtext.FormatOn) {
-					formatText(doc, style.toggle)
-				}
+		ui.Row(c.Key("font-row")).Gap(8).Children(func() {
+			if ui.Combobox(c.Key("font"), &name, fonts.options).Grow(1).Height(34).Radius(7).
+				FontSize(12).Label("字体").Changed() {
+				family := fonts.familyByName[name]
+				formatText(doc, func() { doc.Format(func(a *richtext.Attributes) { a.Font = family }) })
 			}
-			ui.Box(c).Grow(1)
 			size := float64(formats.Attributes.Size)
 			if size == 0 {
 				size = float64(font.Size)
 			}
 			before := size
-			inspectorNumber(c.Key("font-size"), "字号", "pt", 80, &size, 1, 114, 1)
+			inspectorNumber(c.Key("font-size"), "字号", "pt", 108, &size, 1, 114, 1, true)
 			if size != before {
 				formatText(doc, func() { doc.Format(func(a *richtext.Attributes) { a.Size = float32(size) }) })
 			}
@@ -238,10 +217,69 @@ func (e *editor) textProperties(c *ui.Context, element *labelText) bool {
 		if element.Vertical {
 			horizontal, vertical = ui.End-element.BlockAlign, formats.Paragraph.Align
 		}
-		ui.Row(c.Key("alignment")).Gap(8).Children(func() {
-			alignmentGroup(c.Key("horizontal"), [3]string{"左对齐", "水平居中", "右对齐"}, horizontalAlignIcons, &horizontal)
-			alignmentGroup(c.Key("vertical"), [3]string{"上对齐", "垂直居中", "下对齐"}, verticalAlignIcons, &vertical)
+		wasVertical := element.Vertical
+		direction := 0
+		if wasVertical {
+			direction = 1
+		}
+
+		ui.Row(c.Key("styles")).Gap(2).AlignItems(ui.Center).Children(func() {
+			for i, style := range []struct {
+				title  string
+				glyph  string
+				state  richtext.FormatState
+				toggle func()
+			}{
+				{"加粗", "B", formats.Bold, doc.ToggleBold},
+				{"斜体", "I", formats.Italic, doc.ToggleItalic},
+				{"下划线", "U", formats.Underline, doc.ToggleUnderline},
+				{"删除线", "S", formats.Strikethrough, doc.ToggleStrikethrough},
+			} {
+				button := ui.ButtonBase(c.Key(style.title)).Size(30, 30).Radius(6).Role(ui.RoleButton).
+					Label(style.title).Tooltip(style.title).AccessSelected(style.state == richtext.FormatOn)
+				ink := ui.Hex("#475467")
+				if style.state == richtext.FormatOn {
+					button.Background(ui.Hex(colorPanel)).Shadow(0, 1, 2, 0, ui.RGBA(16, 24, 40, 0.08))
+					ink = c.Theme().Accent
+				} else if button.Hovered() {
+					button.Background(ui.Hex("#E9EEF5"))
+				}
+				button.Children(func() {
+					text := ui.Text(c, style.glyph).FontSize(12.5).FontWeight(600).TextColor(ink)
+					switch i {
+					case 1:
+						text.Italic()
+					case 2:
+						text.Underline()
+					case 3:
+						text.Strikethrough()
+					}
+				})
+				if button.Clicked() {
+					formatText(doc, style.toggle)
+				}
+			}
+			ui.Box(c.Key("spacer")).Grow(1)
+			for i, label := range [3]string{"左对齐", "水平居中", "右对齐"} {
+				if propertyButton(c, label, horizontalAlignIcons[i], horizontal == ui.Align(i)) {
+					horizontal = ui.Align(i)
+				}
+			}
 		})
+
+		ui.Row(c.Key("alignment")).Gap(8).Children(func() {
+			alignmentGroup(c.Key("vertical"), [3]string{"上对齐", "垂直居中", "下对齐"}, verticalAlignIcons, &vertical)
+			ui.Column(c.Key("direction")).Width(112).Shrink(0).Children(func() {
+				optionRow(c.Key("options"), []string{"横排", "竖排"}, direction, func(i int) {
+					direction = i
+				})
+			})
+		})
+
+		if vertical := direction == 1; vertical != wasVertical {
+			element.Vertical = vertical
+			changed = true
+		}
 		inline, block := horizontal, vertical
 		if element.Vertical {
 			inline, block = vertical, ui.End-horizontal
@@ -253,18 +291,6 @@ func (e *editor) textProperties(c *ui.Context, element *labelText) bool {
 			element.BlockAlign = block
 			changed = true
 		}
-
-		ui.Row(c.Key("direction-row")).Gap(8).AlignItems(ui.Center).Children(func() {
-			ui.Text(c, "书写方向").FontSize(12).TextColor(t.TextMuted).Grow(1)
-			direction := "横排"
-			if element.Vertical {
-				direction = "竖排"
-			}
-			if ui.Select(c.Key("direction"), &direction, []string{"横排", "竖排"}).Width(98).Height(28).Label("文字方向").Changed() {
-				element.Vertical = direction == "竖排"
-				changed = true
-			}
-		})
 	})
 	return state.writeTo(element) || changed
 }

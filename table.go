@@ -236,17 +236,21 @@ func (e *editor) tableProperties(c *ui.Context, a *item) {
 			count *int
 			low   int
 		}{{"行数", &a.Rows, minRows}, {"列数", &a.Columns, minColumns}} {
-			ui.Column(c.Key(field.name)).Grow(1).MinWidth(0).Gap(4).Children(func() {
-				ui.Text(c, field.name).FontSize(11).TextColor(c.Theme().TextMuted)
+			field := field
+			ui.Column(c.Key(field.name)).Grow(1).MinWidth(0).Gap(5).Children(func() {
+				ui.Text(c, field.name).FontSize(10).TextColor(ui.Hex(colorMuted))
 				value := float64(*field.count)
-				inspectorNumber(c.Key("count"), field.name, "", 0, &value, float64(field.low), maximumTableCount, 0)
+				inspectorNumber(c.Key("count"), field.name, "", 0, &value, float64(field.low), maximumTableCount, 0, false)
 				*field.count = int(value)
 			})
 		}
 	})
-	inspectorDimension(c, "线宽", &a.Stroke, minimumLineWidth, maximumTableStroke)
+	ui.Column(c.Key("stroke")).Gap(5).Children(func() {
+		ui.Text(c, "线宽").FontSize(10).TextColor(ui.Hex(colorMuted))
+		inspectorNumber(c.Key("stroke"), "线宽", "mm", 0, &a.Stroke, minimumLineWidth, maximumTableStroke, 1, false)
+	})
 	if rows != a.Rows || columns != a.Columns || stroke != a.Stroke {
-		e.document.Changed()
+		e.changed()
 	}
 
 	var area cellRange
@@ -261,13 +265,13 @@ func (e *editor) tableProperties(c *ui.Context, a *item) {
 	if index >= 0 {
 		title = "取消合并"
 	}
-	if ui.Button(c.Key("merge-cells"), title).FillWidth().Disabled(e.cells == nil || !area.multiple()).Clicked() {
+	if secondaryButton(c.Key("merge-cells"), title, e.cells != nil && area.multiple()) {
 		if index >= 0 {
 			a.Merges = slices.Delete(slices.Clone(a.Merges), index, index+1)
 		} else {
 			a.mergeCells(area)
 		}
-		e.document.Changed()
+		e.changed()
 	}
 	if e.cells == nil || (area.multiple() && !slices.Contains(a.Merges, area)) {
 		e.flushTextEdit()
@@ -277,7 +281,7 @@ func (e *editor) tableProperties(c *ui.Context, a *item) {
 	cell := e.editTableCell(a, area)
 	if e.textProperties(c.Key("cell-text").Key(area.Top).Key(area.Left), &cell) {
 		a.setCell(area.Top, area.Left, cell)
-		e.document.Changed()
+		e.changed()
 	}
 }
 

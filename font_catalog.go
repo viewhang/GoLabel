@@ -20,12 +20,12 @@ var fontCatalog = [...]struct {
 
 // fontDownloadHeading 显示字体标题和打开下载目录的按钮
 func fontDownloadHeading(c *ui.Context) {
-	t := c.Theme()
 	ui.Row(c).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "字体").FontSize(11).TextColor(t.TextMuted).Grow(1)
+		sectionHeading(c, "字体")
+		ui.Box(c.Key("spacer")).Grow(1)
 		button := ui.ButtonBase(c.Key("font-download")).Role(ui.RoleButton).Cursor(ui.CursorPointer)
 		button.Children(func() {
-			text := ui.Text(c, "下载开源字体").FontSize(11).TextColor(t.Accent)
+			text := ui.Text(c, "下载开源字体").FontSize(10.5).TextColor(ui.Hex(colorAccent))
 			if button.Hovered() {
 				text.Underline()
 			}
