@@ -1,0 +1,30 @@
+{
+  "name": "GoLabel",
+  "identifier": "com.pengh.golabel",
+  "version": "0.1.0",
+  "out": "build",
+  "macos": {
+    "infoPlist": {
+      "CFBundleDevelopmentRegion": "zh-Hans",
+      "CFBundleLocalizations": ["zh-Hans"],
+      "CFBundleDocumentTypes": [
+        {
+          "CFBundleTypeName": "GoLabel 标签模板",
+          "CFBundleTypeRole": "Editor",
+          "LSHandlerRank": "Owner",
+          "LSItemContentTypes": ["com.pengh.golabel.template"]
+        }
+      ],
+      "UTExportedTypeDeclarations": [
+        {
+          "UTTypeIdentifier": "com.pengh.golabel.template",
+          "UTTypeDescription": "GoLabel 标签模板",
+          "UTTypeConformsTo": ["public.json"],
+          "UTTypeTagSpecification": {
+            "public.filename-extension": ["golabel"]
+          }
+        }
+      ]
+    }
+  }
+}
