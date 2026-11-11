@@ -145,13 +145,13 @@ func (e *editor) settingsDialog(c *ui.Context) {
 		return
 	}
 	ui.Modal(c, &s.open, func() {
-		ui.Column(c.Key("dialog")).Width(settingsDialogWidth).Children(func() {
+		ui.Column(c.Key("dialog")).Width(settingsDialogWidth).MinHeight(0).Children(func() {
 			ui.Row(c.Key("heading")).Gap(16).AlignItems(ui.Center).Children(func() {
 				ui.Text(c, i18n.Tr("settings.title")).FontSize(19).FontWeight(650).TextColor(colors.Heading).Grow(1)
 				iconAction(c.Key("close"), i18n.Tr("settings.close"), iconClose, func() { s.open = false })
 			})
 			hairline(c.Key("rule"))
-			ui.Row(c.Key("body")).Height(settingsBodyHeight).AlignItems(ui.Stretch).Children(func() {
+			ui.Row(c.Key("body")).Height(settingsBodyHeight).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
 				e.settingsNav(c.Key("nav"))
 				ui.Column(c.Key("content")).Grow(1).MinWidth(0).FillHeight().
 					Padding(18, 20, 18, 22).Children(func() {

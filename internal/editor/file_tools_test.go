@@ -12,6 +12,7 @@ import (
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/richtext"
 )
 
 // TestRecentFilesMenu 验证打开旁的菜单会列出仍存在的最近文件
@@ -43,6 +44,94 @@ func TestRecentFilesMenu(t *testing.T) {
 	}
 	if got := tt.Menu(); !slices.Equal(got, []string{"商品.golabel"}) {
 		t.Fatalf("最近文件菜单显示了 %v", got)
+	}
+}
+
+// TestUserTemplateThumbnail 验证保存时写回富文本并持久化实际缩略图且兼容旧模板
+func TestUserTemplateThumbnail(t *testing.T) {
+	originalTemplates, originalSettings := labelTemplates, settingsFile
+	dir := t.TempDir()
+	settingsFile = func() string { return filepath.Join(dir, "settings.json") }
+	t.Cleanup(func() {
+		labelTemplates, settingsFile = originalTemplates, originalSettings
+	})
+	l := &label{Width: 40, Height: 30, DPI: 203, Items: []item{
+		{Kind: kindText, X: 1, Y: 1, W: 38, H: 12, labelText: labelText{Value: "原始文字", FontSize: 7}},
+	}}
+	e := &editor{label: l, selected: 0, zoom: 1, textEdit: newTextEdit(l.Items[0].labelText)}
+	length := e.textEdit.doc.Text().Len()
+	e.textEdit.doc.Edit(func(edit *richtext.Edit) {
+		edit.ReplaceString(0, length, "1.5 单被套", richtext.Attributes{Weight: 700})
+	})
+	e.saveForm.name = "富文本缩略图"
+	e.saveTemplate()
+	if e.saveForm.message != "" {
+		t.Fatal(e.saveForm.message)
+	}
+	saveImage(t, "golabel-custom-template-thumbnail", ui.NewTester(e.view, 1280, 800))
+	template := labelTemplates[len(labelTemplates)-1]
+	if template.thumbnail == nil || template.custom.Items[0].RichText == nil ||
+		template.custom.Items[0].Value != "" || template.custom.Items[0].textContent().PlainText() != "1.5 单被套" {
+		t.Fatal("保存时没有写回富文本或生成实际缩略图")
+	}
+	files, err := filepath.Glob(filepath.Join(dir, "templates", "*.json"))
+	if err != nil || len(files) != 1 {
+		t.Fatalf("模板文件数量不正确：%v，%v", files, err)
+	}
+	data, err := os.ReadFile(files[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var saved userTemplateFile
+	if err := json.Unmarshal(data, &saved); err != nil {
+		t.Fatal(err)
+	}
+	thumbnail, err := png.Decode(bytes.NewReader(saved.Thumbnail))
+	if err != nil {
+		t.Fatalf("没有持久化有效 PNG 缩略图：%v", err)
+	}
+	if thumbnail.Bounds().Dx() != 640 || thumbnail.Bounds().Dy() != 480 {
+		t.Fatalf("缩略图没有保持标签宽高比：%v", thumbnail.Bounds())
+	}
+	ink := 0
+	for y := 0; y < thumbnail.Bounds().Dy(); y++ {
+		for x := 0; x < thumbnail.Bounds().Dx(); x++ {
+			r, g, b, _ := thumbnail.At(x, y).RGBA()
+			if r+g+b < 3*0x4000 {
+				ink++
+			}
+		}
+	}
+	if ink < 100 {
+		t.Fatal("富文本缩略图仍然是空白")
+	}
+	loaded, err := readUserTemplate(files[0], nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	render := func(template labelTemplate) *image.RGBA {
+		return ui.Render(func(c *ui.Context) {
+			ui.Box(c).Fill().Draw(func(p *ui.Painter, r ui.Rect) { paintTemplateThumb(p, r, template) })
+		}, 320, 240, 1)
+	}
+	first := render(template)
+	if !bytes.Equal(first.Pix, render(loaded).Pix) {
+		t.Fatal("重新加载后没有使用相同的缩略图")
+	}
+	saved.Thumbnail = nil
+	legacy, err := json.Marshal(saved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(files[0], legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err = readUserTemplate(files[0], nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.thumbnail == nil || !bytes.Equal(first.Pix, render(loaded).Pix) {
+		t.Fatal("已有模板没有从富文本内容重建正确的预览")
 	}
 }
 
@@ -86,7 +175,7 @@ func TestSaveTemplateRoundTrip(t *testing.T) {
 	}
 
 	labelTemplates = originalTemplates
-	loadUserTemplates()
+	loadUserTemplates(nil)
 	if len(labelTemplates) != len(originalTemplates)+1 {
 		t.Fatal("重新加载时没有读到已保存的模板")
 	}

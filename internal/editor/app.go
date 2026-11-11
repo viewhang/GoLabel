@@ -38,7 +38,7 @@ func Run() error {
 	applyLanguage()
 	setNativeTheme = mygo.Theme.SetSource
 	applyThemePreference()
-	loadUserTemplates()
+	loadUserTemplates(graphics)
 	mygo.App.WhenReady(tabs.openWindow)
 	mygo.App.OnOpenFile(func(path string) {
 		if !strings.EqualFold(filepath.Ext(path), ".golabel") {

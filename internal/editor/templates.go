@@ -18,18 +18,21 @@ const (
 	templateCardHeight = 112
 	// templateThumbHeight 是卡片缩略图区的高度
 	templateThumbHeight = 68
+	// templateThumbnailSize 是用户模板缩略图最长边的像素数
+	templateThumbnailSize = 640
 )
 
 // labelTemplate 保存模板名称、分类、规格和内置示例或用户标签
 type labelTemplate struct {
-	name     string
-	category string
-	width    float64
-	height   float64
-	dpi      int
-	zhItems  []item
-	enItems  []item
-	custom   *label
+	name      string
+	category  string
+	width     float64
+	height    float64
+	dpi       int
+	zhItems   []item
+	enItems   []item
+	custom    *label
+	thumbnail *ui.Bitmap
 }
 
 // label 生成可独立编辑的标签，内置示例内容跟随当前界面语言
@@ -280,9 +283,9 @@ func (e *editor) useTemplate(t labelTemplate) {
 	e.tabs.newTab(l)
 }
 
-// templatePage 显示模板搜索、分类、卡片网格和选中模板预览
+// templatePage 在内容区剩余高度中显示模板列表和选中模板预览
 func (e *editor) templatePage(c *ui.Context) {
-	ui.Row(c).Gap(20).AlignItems(ui.Stretch).Children(func() {
+	ui.Row(c).Grow(1).MinHeight(0).Gap(20).AlignItems(ui.Stretch).Children(func() {
 		if e.templateList(c.Key("list")) {
 			e.templateDetail(c.Key("detail"), labelTemplates[e.settings.template])
 		} else {
@@ -464,7 +467,7 @@ func paintTemplateThumb(p *ui.Painter, r ui.Rect, t labelTemplate) {
 	l := t.previewLabel()
 	paper := paperIn(r, l, 10)
 	p.Shadow(paper, 0, 0, 4, 10, -3, colors.ShadowMid)
-	paintSketchLabel(p, paper, l)
+	t.paintPreview(p, paper, l)
 	p.Stroke(paper, ui.Hex("#D5DEE8"), 0, 1)
 }
 
@@ -477,8 +480,17 @@ func paintTemplatePreview(p *ui.Painter, r ui.Rect, t labelTemplate) {
 	l := t.previewLabel()
 	paper := paperIn(r, l, 16)
 	p.Shadow(paper, 0, 0, 10, 24, -8, colors.ShadowStrong)
-	paintSketchLabel(p, paper, l)
+	t.paintPreview(p, paper, l)
 	p.Stroke(paper, ui.Hex("#D5DEE8"), 0, 1)
+}
+
+// paintPreview 绘制用户模板的实际缩略图或内置模板示意
+func (t labelTemplate) paintPreview(p *ui.Painter, paper ui.Rect, l *label) {
+	if t.thumbnail != nil {
+		p.Image(t.thumbnail, paper, ui.Contain)
+		return
+	}
+	paintSketchLabel(p, paper, l)
 }
 
 // paintSketchLabel 按比例绘制标签示意，用图案代替需要图形上下文的码
