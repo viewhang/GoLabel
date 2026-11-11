@@ -196,8 +196,7 @@ func (e *editor) textProperties(c *ui.Context, element *labelText) bool {
 		name := cmp.Or(fonts.nameByFamily[formats.Attributes.Font], formats.Attributes.Font)
 		fontDownloadHeading(c.Key("font-heading"))
 		ui.Row(c.Key("font-row")).Gap(8).Children(func() {
-			if ui.Combobox(c.Key("font"), &name, fonts.options).Grow(1).Height(34).Radius(7).
-				FontSize(12).Label(i18n.Tr("text.font")).Changed() {
+			if fontPicker(c.Key("font"), &name, fonts) {
 				family := fonts.familyByName[name]
 				formatText(doc, func() { doc.Format(func(a *richtext.Attributes) { a.Font = family }) })
 			}

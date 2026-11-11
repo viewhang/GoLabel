@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/egoist/mygo/ui"
@@ -56,4 +57,53 @@ func makeFontMenu() fontMenu {
 		menu.nameByFamily[font.Name], menu.familyByName[name] = name, font.Name
 	}
 	return menu
+}
+
+// fontPicker 显示整框可点击的字体搜索框并返回用户确认的选择
+func fontPicker(c *ui.Context, selected *string, fonts fontMenu) bool {
+	field := ui.Row(c).Grow(1).MinWidth(0).Height(34)
+	query := ui.Local(field, "query", func() string { return "" })
+	changed := false
+	field.Children(func() {
+		picker := ui.ComboboxBase(c.Key("input"), query)
+		picker.Input.Grow(1).MinWidth(0).Height(34).Padding(0, 30, 0, 10).Radius(7).
+			Border(1, colors.FieldBorder).Background(colors.FieldBg).FontSize(12).
+			Placeholder(*selected).PlaceholderColor(colors.Text).Label(i18n.Tr("font.choose")).
+			AutoComplete(ui.AutoCompleteList)
+		ui.Icon(c.Key("arrow"), iconChevron).Size(13, 13).Rotate(90).TextColor(colors.Muted).
+			Absolute().Right(10).Top(10).IgnoreInput(true)
+		if !picker.Input.Focused() || !picker.Open() {
+			*query = ""
+		}
+		picker.Popup(func(panel ui.Element) {
+			panel.Margin(4, 0, 0, 0).Padding(4).Radius(8).
+				Border(1, colors.FieldBorder).Background(colors.Panel)
+			ui.Scroll(c.Key("options")).MaxHeight(260).Children(func() {
+				filter := strings.ToLower(strings.TrimSpace(*query))
+				matches := 0
+				for _, name := range fonts.options {
+					if !strings.Contains(strings.ToLower(name), filter) &&
+						!strings.Contains(strings.ToLower(fonts.familyByName[name]), filter) {
+						continue
+					}
+					matches++
+					option := picker.Item(name).Padding(6, 8).Radius(5)
+					if option.Highlighted() {
+						option.Background(colors.Primary).TextColor(ui.RGB(255, 255, 255))
+					} else if name == *selected {
+						option.Background(colors.Selected)
+					}
+					option.Children(func() { ui.Text(c, name).FontSize(12).SingleLine() })
+				}
+				if matches == 0 {
+					ui.Text(c, i18n.Tr("font.noMatches")).Padding(6, 8).FontSize(12).TextColor(colors.Muted)
+				}
+			})
+		})
+		if name, ok := picker.Chosen(); ok {
+			changed = *selected != name
+			*selected, *query = name, ""
+		}
+	})
+	return changed
 }
