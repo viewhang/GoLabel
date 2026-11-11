@@ -555,7 +555,9 @@ func paintSketchLabel(p *ui.Painter, paper ui.Rect, l *label) {
 					p.TextLayout(layout, x, r.Y+(r.H-height)/2, ink)
 				})
 			case kindLine:
-				p.Fill(ui.Rect{X: r.X, Y: r.Y + r.H/2, W: r.W, H: max(1, r.H)}, ink, 0)
+				a.paintLine(p, r, sy, ink)
+			case kindRectangle, kindEllipse, kindDiamond, kindTriangle, kindStar, kindHexagon:
+				a.paintShape(p, r, sy, ink)
 			case kindBarcode:
 				paintSketchBarcode(p, r)
 			case kindQR:

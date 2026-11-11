@@ -57,6 +57,24 @@ var messages = map[string]Text{
 	"kind.line":    {"分隔线", "Separator"},
 	"kind.table":   {"表格", "Table"},
 
+	"kind.rectangle": {"矩形", "Rectangle"},
+	"kind.ellipse":   {"椭圆", "Ellipse"},
+	"kind.diamond":   {"菱形", "Diamond"},
+	"kind.triangle":  {"三角形", "Triangle"},
+	"kind.star":      {"五角星", "Star"},
+	"kind.hexagon":   {"六边形", "Hexagon"},
+
+	// 图形和线条
+	"shape.radius":     {"圆角半径", "Corner radius"},
+	"shape.fill":       {"填充", "Fill"},
+	"line.style":       {"线型", "Line style"},
+	"line.solid":       {"实线", "Solid"},
+	"line.dashed":      {"虚线", "Dashed"},
+	"line.dotted":      {"点线", "Dotted"},
+	"line.double":      {"双实线", "Double line"},
+	"line.arrow":       {"单向箭头", "Arrow"},
+	"line.doubleArrow": {"双向箭头", "Double arrow"},
+
 	// 画布
 	"canvas.label":     {"标签画布", "Label canvas"},
 	"canvas.zoomOut":   {"缩小", "Zoom out"},
@@ -244,6 +262,8 @@ var messages = map[string]Text{
 	"error.textAlign":      {"第 %d 个文字元素的对齐方式无效", "Element %d has an invalid alignment"},
 	"error.itemDetail":     {"第 %d 个元素：%w", "Element %d: %w"},
 	"error.table":          {"第 %d 个表格元素的行列、线宽、文字或合并区域无效", "Element %d has invalid table rows, columns, line width, text, or merges"},
+	"error.shape":          {"第 %d 个图形元素的线宽或圆角半径无效", "Element %d has an invalid shape stroke or corner radius"},
+	"error.line":           {"第 %d 个线条元素的线型或线宽无效", "Element %d has an invalid line style or stroke width"},
 	"error.itemKind":       {"第 %d 个元素的类型未知", "Element %d has an unknown type"},
 	"error.imageType":      {"请选择有效的 PNG 或 JPEG 图片", "Choose a valid PNG or JPEG image"},
 	"error.imagePixels":    {"图片最多支持 2400 万像素", "Images are limited to 24 megapixels"},

@@ -29,10 +29,22 @@ const (
 	kindBarcode itemKind = "code128"
 	// kindQR 表示二维码
 	kindQR itemKind = "qr"
-	// kindLine 表示以高度为线宽的横线
+	// kindLine 表示支持独立线宽和多种线型的线条
 	kindLine itemKind = "line"
 	// kindTable 表示等宽等高单元格组成的表格
 	kindTable itemKind = "table"
+	// kindRectangle 表示可调圆角的矩形
+	kindRectangle itemKind = "rectangle"
+	// kindEllipse 表示椭圆或等宽高的圆形
+	kindEllipse itemKind = "ellipse"
+	// kindDiamond 表示菱形
+	kindDiamond itemKind = "diamond"
+	// kindTriangle 表示三角形
+	kindTriangle itemKind = "triangle"
+	// kindStar 表示五角星
+	kindStar itemKind = "star"
+	// kindHexagon 表示六边形
+	kindHexagon itemKind = "hexagon"
 	// minimumSide 是标签宽高的最小毫米数
 	minimumSide = 10
 	// maximumSide 是标签宽高的最大毫米数
@@ -53,7 +65,7 @@ type label struct {
 	title string
 }
 
-// item 保存元素内容和毫米坐标以及内存中的绘制资源
+// item 保存元素内容、毫米坐标、图形样式和内存中的绘制资源
 type item struct {
 	Kind itemKind `json:"kind"`
 	X    float64  `json:"xMm"`
@@ -67,6 +79,10 @@ type item struct {
 	Stroke  float64        `json:"strokeMm,omitempty"`
 	Cells   [][]*tableCell `json:"cells,omitempty"`
 	Merges  []cellRange    `json:"merges,omitempty"`
+
+	CornerRadius float64   `json:"cornerRadiusMm,omitempty"`
+	Filled       bool      `json:"filled,omitempty"`
+	LineStyle    lineStyle `json:"lineStyle,omitempty"`
 
 	bitmap *ui.Bitmap
 	symbol *symbol
@@ -128,7 +144,15 @@ func readLabel(r io.Reader) (*label, error) {
 			if !e.validTable() {
 				return nil, fmt.Errorf(i18n.Tr("error.table"), i+1)
 			}
-		case kindBarcode, kindQR, kindLine:
+		case kindRectangle, kindEllipse, kindDiamond, kindTriangle, kindStar, kindHexagon:
+			if !e.validShape() {
+				return nil, fmt.Errorf(i18n.Tr("error.shape"), i+1)
+			}
+		case kindLine:
+			if !e.validLine() {
+				return nil, fmt.Errorf(i18n.Tr("error.line"), i+1)
+			}
+		case kindBarcode, kindQR:
 		default:
 			return nil, fmt.Errorf(i18n.Tr("error.itemKind"), i+1)
 		}
@@ -167,7 +191,11 @@ func decodeImage(data []byte) (*ui.Bitmap, error) {
 // minimumHeight 返回元素高度允许的最小毫米数
 func (e *item) minimumHeight() float64 {
 	if e.Kind == kindLine {
-		return minimumLineWidth
+		factor := 1.0
+		if e.LineStyle == lineDouble {
+			factor = 3
+		}
+		return max(minimumLineWidth, factor*e.Stroke)
 	}
 	return minimumItem
 }
@@ -176,6 +204,17 @@ func (e *item) minimumHeight() float64 {
 func (e *item) constrain(l *label) {
 	e.W = min(max(e.W, minimumItem), l.Width)
 	e.H = min(max(e.H, e.minimumHeight()), l.Height)
+	switch e.Kind {
+	case kindRectangle, kindEllipse, kindDiamond, kindTriangle, kindStar, kindHexagon:
+		e.Stroke = min(e.Stroke, min(e.W, e.H)/2)
+		e.CornerRadius = min(e.CornerRadius, min(e.W, e.H)/2)
+	case kindLine:
+		factor := 1.0
+		if e.LineStyle == lineDouble {
+			factor = 3
+		}
+		e.Stroke = min(e.Stroke, e.W, e.H/factor)
+	}
 	e.X = min(max(e.X, 0), l.Width-e.W)
 	e.Y = min(max(e.Y, 0), l.Height-e.H)
 }
@@ -272,8 +311,9 @@ func (l *label) paint(p *ui.Painter, paper ui.Rect, printing bool) {
 			case kindImage:
 				p.Image(e.bitmap, rect, ui.Contain)
 			case kindLine:
-				y := rect.Y + rect.H/2
-				p.Line(rect.X, y, rect.X+rect.W, y, max(1, rect.H), black)
+				e.paintLine(p, rect, unitsPerMM, black)
+			case kindRectangle, kindEllipse, kindDiamond, kindTriangle, kindStar, kindHexagon:
+				e.paintShape(p, rect, unitsPerMM, black)
 			case kindTable:
 				e.paintTable(p, rect, unitsPerMM, black)
 			case kindBarcode, kindQR:

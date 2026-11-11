@@ -282,23 +282,28 @@ func (e *editor) sidebar(c *ui.Context) {
 		ui.Row(c.Key("add-head")).Padding(18, panelPadding, 10, panelPadding).Shrink(0).Children(func() {
 			sectionHeading(c, i18n.Tr("sidebar.add"))
 		})
-		ui.Column(c.Key("tools")).Padding(0, panelPadding, 16, panelPadding).Shrink(0).Gap(8).Children(func() {
-			tools := [...]struct {
-				kind itemKind
-				name string
-				icon *ui.SVG
-			}{
-				{kindText, i18n.Tr("kind.text"), iconText}, {kindImage, i18n.Tr("kind.image"), iconPicture},
-				{kindBarcode, i18n.Tr("kind.barcode"), iconBarcode}, {kindQR, i18n.Tr("kind.qr"), iconQR},
-				{kindLine, i18n.Tr("sidebar.line"), iconLine}, {kindTable, i18n.Tr("kind.table"), iconTable},
-			}
-			for i := 0; i < len(tools); i += 2 {
-				ui.Row(c.Key(i)).Gap(8).Children(func() {
-					for _, tool := range tools[i:min(i+2, len(tools))] {
-						e.toolCard(c.Key(tool.kind), tool.kind, tool.name, tool.icon)
-					}
-				})
-			}
+		ui.Scroll(c.Key("tools")).MaxHeightPercent(55).MinHeight(0).Shrink(0).Children(func() {
+			ui.Column(c.Key("cards")).Padding(0, panelPadding, 16, panelPadding).Gap(8).Children(func() {
+				tools := [...]struct {
+					kind itemKind
+					name string
+					icon *ui.SVG
+				}{
+					{kindText, i18n.Tr("kind.text"), iconText}, {kindImage, i18n.Tr("kind.image"), iconPicture},
+					{kindBarcode, i18n.Tr("kind.barcode"), iconBarcode}, {kindQR, i18n.Tr("kind.qr"), iconQR},
+					{kindLine, i18n.Tr("sidebar.line"), iconLine}, {kindTable, i18n.Tr("kind.table"), iconTable},
+					{kindRectangle, i18n.Tr("kind.rectangle"), iconRectangle}, {kindEllipse, i18n.Tr("kind.ellipse"), iconEllipse},
+					{kindDiamond, i18n.Tr("kind.diamond"), iconDiamond}, {kindTriangle, i18n.Tr("kind.triangle"), iconTriangle},
+					{kindStar, i18n.Tr("kind.star"), iconStar}, {kindHexagon, i18n.Tr("kind.hexagon"), iconHexagon},
+				}
+				for i := 0; i < len(tools); i += 2 {
+					ui.Row(c.Key(i)).Gap(8).Children(func() {
+						for _, tool := range tools[i:min(i+2, len(tools))] {
+							e.toolCard(c.Key(tool.kind), tool.kind, tool.name, tool.icon)
+						}
+					})
+				}
+			})
 		})
 
 		hairline(c.Key("divider"))
@@ -500,7 +505,11 @@ func (e *editor) add(a item) {
 	case kindImage:
 		a.W, a.H = 18, 18
 	case kindLine:
-		a.W, a.H = 28, 0.3
+		a.W, a.H, a.Stroke = 28, 3, 0.3
+	case kindRectangle:
+		a.W, a.H, a.Stroke = 24, 14, 0.3
+	case kindEllipse, kindDiamond, kindTriangle, kindStar, kindHexagon:
+		a.W, a.H, a.Stroke = 16, 16, 0.3
 	case kindTable:
 		a.W, a.H, a.Rows, a.Columns, a.Stroke = 30, 16, 3, 3, 0.3
 	}

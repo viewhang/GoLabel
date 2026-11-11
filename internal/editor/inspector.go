@@ -43,6 +43,10 @@ func (e *editor) inspector(c *ui.Context) {
 					if a.issue != nil {
 						ui.Text(c.Key("issue"), a.issue.Error()).FontSize(11).TextColor(c.Theme().Danger).Wrap()
 					}
+				case kindRectangle, kindEllipse, kindDiamond, kindTriangle, kindStar, kindHexagon:
+					e.shapeProperties(c.Key("shape"), a)
+				case kindLine:
+					e.lineProperties(c.Key("line"), a)
 				case kindTable:
 					sectionHeading(c, i18n.Tr("inspector.table"))
 					e.tableProperties(c.Key("table"), a)
@@ -127,7 +131,7 @@ func (e *editor) positionProperties(c *ui.Context, a *item) {
 	ui.Row(c.Key("size")).Gap(8).Children(func() {
 		widthName, heightName := i18n.Tr("inspector.width"), i18n.Tr("inspector.height")
 		if a.Kind == kindLine {
-			widthName, heightName = i18n.Tr("inspector.length"), i18n.Tr("table.stroke")
+			widthName = i18n.Tr("inspector.length")
 		}
 		inspectorDimension(c, widthName, &a.W, minimumItem, l.Width-a.X)
 		inspectorDimension(c, heightName, &a.H, a.minimumHeight(), l.Height-a.Y)

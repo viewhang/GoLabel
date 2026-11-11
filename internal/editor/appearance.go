@@ -288,6 +288,18 @@ var (
 	iconCheck    = svgIcon(`<path d="m5 12 5 5 9-10"/>`)
 	iconSun      = svgIcon(`<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4 7 17M17 7l1.4-1.4"/>`)
 	iconMoon     = svgIcon(`<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/>`)
+	// iconRectangle 表示矩形元素
+	iconRectangle = svgIcon(`<rect x="3" y="5" width="18" height="14" rx="1"/>`)
+	// iconEllipse 表示椭圆元素
+	iconEllipse = svgIcon(`<ellipse cx="12" cy="12" rx="9" ry="7"/>`)
+	// iconDiamond 表示菱形元素
+	iconDiamond = svgIcon(`<path d="m12 3 9 9-9 9-9-9Z"/>`)
+	// iconTriangle 表示三角形元素
+	iconTriangle = svgIcon(`<path d="m12 3 10 17H2Z"/>`)
+	// iconStar 表示五角星元素
+	iconStar = svgIcon(`<path d="m12 2.5 2.94 5.96 6.58.96-4.76 4.64 1.13 6.55L12 17.52l-5.89 3.09 1.13-6.55-4.76-4.64 6.58-.96Z"/>`)
+	// iconHexagon 表示六边形元素
+	iconHexagon = svgIcon(`<path d="m7 3 10 0 5 9-5 9H7l-5-9Z"/>`)
 )
 
 // layerIcon 返回元素在图层列表中的图标
@@ -303,6 +315,18 @@ func layerIcon(kind itemKind) *ui.SVG {
 		return iconLine
 	case kindTable:
 		return iconTable
+	case kindRectangle:
+		return iconRectangle
+	case kindEllipse:
+		return iconEllipse
+	case kindDiamond:
+		return iconDiamond
+	case kindTriangle:
+		return iconTriangle
+	case kindStar:
+		return iconStar
+	case kindHexagon:
+		return iconHexagon
 	default:
 		return iconText
 	}
@@ -321,6 +345,18 @@ func kindTitle(kind itemKind) string {
 		return i18n.Tr("kind.line")
 	case kindTable:
 		return i18n.Tr("kind.table")
+	case kindRectangle:
+		return i18n.Tr("kind.rectangle")
+	case kindEllipse:
+		return i18n.Tr("kind.ellipse")
+	case kindDiamond:
+		return i18n.Tr("kind.diamond")
+	case kindTriangle:
+		return i18n.Tr("kind.triangle")
+	case kindStar:
+		return i18n.Tr("kind.star")
+	case kindHexagon:
+		return i18n.Tr("kind.hexagon")
 	default:
 		return i18n.Tr("kind.text")
 	}
