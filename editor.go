@@ -90,7 +90,7 @@ func (e *editor) documentName() string {
 		return e.title
 	}
 	if e.document == nil {
-		return "未命名标签"
+		return tr("header.untitled")
 	}
 	return e.document.Name()
 }
@@ -109,6 +109,8 @@ func (e *editor) changed() {
 
 // view 构建顶部工具栏、左侧元素与图层、画布和右侧属性栏
 func (e *editor) view(c *ui.Context) {
+	// 每帧按偏好校正配色，「跟随系统」可在系统切换外观后自动跟上
+	applyTheme()
 	c.SetTheme(appTheme())
 	l := e.content()
 	if l != e.label {
@@ -126,7 +128,7 @@ func (e *editor) view(c *ui.Context) {
 
 	c.OnShortcut(ui.Cmd, ui.KeyP, func() { e.openPrintPreview() })
 	c.OnShortcut(ui.Cmd, ui.KeyComma, func() { e.openSettings(settingsGeneral) })
-	ui.Column(c).Fill().Background(ui.Hex(colorCanvas)).Children(func() {
+	ui.Column(c).Fill().Background(colors.Canvas).Children(func() {
 		e.header(c.Key("header"))
 		ui.Row(c.Key("workspace")).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
 			e.sidebar(c.Key("sidebar"))
@@ -143,26 +145,26 @@ func (e *editor) view(c *ui.Context) {
 func (e *editor) header(c *ui.Context) {
 	l := e.label
 	ui.Row(c).Height(62).Shrink(0).Padding(0, 20).Gap(16).AlignItems(ui.Center).
-		Background(ui.Hex(colorPanel)).BorderWidth(0, 0, 1, 0).BorderColor(ui.Hex(colorDivider)).
+		Background(colors.Header).BorderWidth(0, 0, 1, 0).BorderColor(colors.Divider).
 		Children(func() {
 			ui.Row(c.Key("brand")).Gap(10).Shrink(0).AlignItems(ui.Center).Children(func() {
-				ui.Row(c.Key("mark")).Size(30, 30).Radius(8).Shrink(0).Background(ui.Hex(colorAccent)).
+				ui.Row(c.Key("mark")).Size(30, 30).Radius(8).Shrink(0).Background(colors.Primary).
 					Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-					ui.Icon(c, iconLogo).Size(17, 17).TextColor(ui.Hex(colorPanel))
+					ui.Icon(c, iconLogo).Size(17, 17).TextColor(colors.OnAccent)
 				})
-				ui.Text(c, "GoLabel").FontSize(14.5).FontWeight(650).TextColor(ui.Hex(colorHeading))
+				ui.Text(c, "GoLabel").FontSize(14.5).FontWeight(650).TextColor(colors.Heading)
 			})
-			ui.Box(c.Key("rule")).Width(1).Height(20).Shrink(0).Background(ui.Hex(colorDivider))
+			ui.Box(c.Key("rule")).Width(1).Height(20).Shrink(0).Background(colors.Divider)
 
 			ui.Row(c.Key("file")).Gap(1).Shrink(0).Children(func() {
-				ghostAction(c.Key("new"), "新建", iconPlus, func() { e.form.openNewLabel() })
-				ghostAction(c.Key("open"), "打开", iconFolder, func() {
+				ghostAction(c.Key("new"), tr("header.new"), iconPlus, func() { e.form.openNewLabel() })
+				ghostAction(c.Key("open"), tr("header.open"), iconFolder, func() {
 					e.perform(func() error {
 						_, err := e.documents.OpenDialog()
 						return err
 					})
 				})
-				ghostAction(c.Key("save"), "保存", iconSave, func() {
+				ghostAction(c.Key("save"), tr("header.save"), iconSave, func() {
 					e.perform(e.document.Save)
 				})
 			})
@@ -170,12 +172,12 @@ func (e *editor) header(c *ui.Context) {
 			ui.Box(c.Key("spacer")).Grow(1)
 			empty := len(l.Items) == 0
 			ui.Row(c.Key("actions")).Gap(8).Shrink(0).AlignItems(ui.Center).Children(func() {
-				ghostAction(c.Key("templates"), "模板", iconGrid, func() { e.openSettings(settingsTemplates) })
-				ghostAction(c.Key("settings"), "设置", iconSliders, func() { e.openSettings(settingsGeneral) })
-				outlineAction(c.Key("pdf"), "导出 PDF", iconDownload, !empty, func() {
+				ghostAction(c.Key("templates"), tr("header.templates"), iconGrid, func() { e.openSettings(settingsTemplates) })
+				ghostAction(c.Key("settings"), tr("header.settings"), iconSliders, func() { e.openSettings(settingsGeneral) })
+				outlineAction(c.Key("pdf"), tr("header.export"), iconDownload, !empty, func() {
 					e.perform(e.exportPDF)
 				})
-				accentAction(c.Key("print"), "打印", iconPrint, !empty, func() {
+				accentAction(c.Key("print"), tr("header.print"), iconPrint, !empty, func() {
 					e.openPrintPreview()
 				})
 			})
@@ -189,18 +191,18 @@ func (e *editor) documentTitle(c *ui.Context) {
 	ui.Row(c).Absolute().LeftPercent(50).Top(0).Height(62).TranslatePercent(-50, 0).
 		Gap(8).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, e.documentName()).FontSize(13).FontWeight(600).MaxWidth(240).
-			SingleLine().TextColor(ui.Hex(colorHeading))
-		text, ink, fill := "已保存", colorSuccess, colorSuccessSoft
+			SingleLine().TextColor(colors.Heading)
+		text, ink, fill := tr("header.saved"), colors.Success, colors.SuccessSoft
 		switch {
 		case e.status != "":
-			text, ink, fill = e.status, colorMuted, colorHover
+			text, ink, fill = e.status, colors.Muted, colors.Hover
 		case e.documentEdited():
-			text, ink, fill = "未保存", colorWarning, colorWarningSoft
+			text, ink, fill = tr("header.unsaved"), colors.Warning, colors.WarningSoft
 		}
 		ui.Row(c.Key("state")).Height(20).Padding(0, 7).Gap(5).Radius(10).Shrink(0).
-			Background(ui.Hex(fill)).AlignItems(ui.Center).Children(func() {
-			ui.Box(c.Key("dot")).Size(5, 5).Radius(3).Shrink(0).Background(ui.Hex(ink))
-			ui.Text(c, text).FontSize(10.5).FontWeight(500).SingleLine().MaxWidth(180).TextColor(ui.Hex(ink))
+			Background(fill).AlignItems(ui.Center).Children(func() {
+			ui.Box(c.Key("dot")).Size(5, 5).Radius(3).Shrink(0).Background(ink)
+			ui.Text(c, text).FontSize(10.5).FontWeight(500).SingleLine().MaxWidth(180).TextColor(ink)
 		})
 	})
 }
@@ -210,32 +212,53 @@ func ghostAction(c *ui.Context, label string, icon *ui.SVG, action func()) {
 	button := ui.ButtonBase(c).Height(32).Padding(0, 9).Radius(7).Gap(6).Shrink(0).
 		AlignItems(ui.Center).Role(ui.RoleButton).Label(label).Cursor(ui.CursorPointer)
 	if button.Hovered() {
-		button.Background(ui.Hex(colorHover))
+		button.Background(colors.Hover)
 	}
 	button.Children(func() {
-		ui.Icon(c, icon).Size(15, 15).TextColor(ui.Hex(colorBody))
-		ui.Text(c, label).FontSize(12.5).FontWeight(500).TextColor(ui.Hex(colorBody))
+		ui.Icon(c, icon).Size(15, 15).TextColor(colors.Body)
+		ui.Text(c, label).FontSize(12.5).FontWeight(500).TextColor(colors.Body)
 	})
 	if button.Clicked() {
 		action()
 	}
 }
 
+// outlineStyle 描述描边按钮使用的一套颜色
+type outlineStyle struct {
+	ink, border, fill, hover, hoverBorder ui.Color
+}
+
 // outlineAction 显示顶栏中描边的次要按钮
 func outlineAction(c *ui.Context, label string, icon *ui.SVG, enabled bool, action func()) {
-	ink, border, fill := colorBody, colorFieldBorder, colorPanel
-	if !enabled {
-		ink, border, fill = "#B3BCCB", colorDivider, colorFieldBg
+	style := outlineStyle{
+		ink: colors.Body, border: colors.FieldBorder, fill: colors.Panel,
+		hover: colors.FieldBg, hoverBorder: colors.BorderHover,
 	}
+	if !enabled {
+		style.ink, style.border, style.fill = colors.Disabled, colors.Divider, colors.FieldBg
+	}
+	outlineButton(c, label, icon, enabled, action, style)
+}
+
+// paperOutlineAction 显示画在白色标签纸上的描边按钮，始终用浅色
+func paperOutlineAction(c *ui.Context, label string, icon *ui.SVG, enabled bool, action func()) {
+	outlineButton(c, label, icon, enabled, action, outlineStyle{
+		ink: colors.PaperInk, border: colors.PaperLine, fill: colors.Paper,
+		hover: colors.PaperChip, hoverBorder: colors.PaperMuted,
+	})
+}
+
+// outlineButton 按给定的配色绘制描边的次要按钮
+func outlineButton(c *ui.Context, label string, icon *ui.SVG, enabled bool, action func(), style outlineStyle) {
 	button := ui.ButtonBase(c).Height(34).Padding(0, 12).Radius(8).Gap(6).Shrink(0).
 		AlignItems(ui.Center).Role(ui.RoleButton).Label(label).Disabled(!enabled).
-		BorderWidth(1).BorderColor(ui.Hex(border)).Background(ui.Hex(fill))
+		BorderWidth(1).BorderColor(style.border).Background(style.fill)
 	if button.Hovered() && enabled {
-		button.Background(ui.Hex(colorFieldBg)).BorderColor(ui.Hex("#C9D3DF"))
+		button.Background(style.hover).BorderColor(style.hoverBorder)
 	}
 	button.Children(func() {
-		ui.Icon(c, icon).Size(15, 15).TextColor(ui.Hex(ink))
-		ui.Text(c, label).FontSize(12.5).FontWeight(500).TextColor(ui.Hex(ink))
+		ui.Icon(c, icon).Size(15, 15).TextColor(style.ink)
+		ui.Text(c, label).FontSize(12.5).FontWeight(500).TextColor(style.ink)
 	})
 	if button.Clicked() && enabled {
 		action()
@@ -244,19 +267,19 @@ func outlineAction(c *ui.Context, label string, icon *ui.SVG, enabled bool, acti
 
 // accentAction 显示顶栏中的主色按钮
 func accentAction(c *ui.Context, label string, icon *ui.SVG, enabled bool, action func()) {
-	fill, ink := colorAccent, colorPanel
+	fill, ink := colors.Primary, colors.OnAccent
 	if !enabled {
-		fill, ink = "#E4E9F0", "#9AA6B6"
+		fill, ink = colors.Badge, colors.Disabled
 	}
 	button := ui.ButtonBase(c).Height(34).Padding(0, 14).Radius(8).Gap(7).Shrink(0).
 		AlignItems(ui.Center).Role(ui.RoleButton).Label(label).Disabled(!enabled).
-		Background(ui.Hex(fill)).Shadow(0, 1, 3, 0, ui.RGBA(16, 24, 40, 0.16))
+		Background(fill).Shadow(0, 1, 3, 0, colors.ShadowMid)
 	if button.Hovered() && enabled {
-		button.Background(ui.Hex("#2743C4"))
+		button.Background(colors.PrimaryHover)
 	}
 	button.Children(func() {
-		ui.Icon(c, icon).Size(15, 15).TextColor(ui.Hex(ink))
-		ui.Text(c, label).FontSize(12.5).FontWeight(600).TextColor(ui.Hex(ink))
+		ui.Icon(c, icon).Size(15, 15).TextColor(ink)
+		ui.Text(c, label).FontSize(12.5).FontWeight(600).TextColor(ink)
 	})
 	if button.Clicked() && enabled {
 		action()
@@ -266,10 +289,10 @@ func accentAction(c *ui.Context, label string, icon *ui.SVG, enabled bool, actio
 // sidebar 显示添加元素、图层列表和纸张设置
 func (e *editor) sidebar(c *ui.Context) {
 	l := e.label
-	ui.Column(c).Width(sidebarWidth).Shrink(0).FillHeight().Background(ui.Hex(colorPanel)).
-		BorderWidth(0, 1, 0, 0).BorderColor(ui.Hex(colorDivider)).Children(func() {
+	ui.Column(c).Width(sidebarWidth).Shrink(0).FillHeight().Background(colors.Panel).
+		BorderWidth(0, 1, 0, 0).BorderColor(colors.Divider).Children(func() {
 		ui.Row(c.Key("add-head")).Padding(18, panelPadding, 10, panelPadding).Shrink(0).Children(func() {
-			sectionHeading(c, "添加元素")
+			sectionHeading(c, tr("sidebar.add"))
 		})
 		ui.Column(c.Key("tools")).Padding(0, panelPadding, 16, panelPadding).Shrink(0).Gap(8).Children(func() {
 			tools := [...]struct {
@@ -277,9 +300,9 @@ func (e *editor) sidebar(c *ui.Context) {
 				name string
 				icon *ui.SVG
 			}{
-				{kindText, "文字", iconText}, {kindImage, "图片", iconPicture},
-				{kindBarcode, "条码", iconBarcode}, {kindQR, "二维码", iconQR},
-				{kindLine, "线条", iconLine}, {kindTable, "表格", iconTable},
+				{kindText, tr("kind.text"), iconText}, {kindImage, tr("kind.image"), iconPicture},
+				{kindBarcode, tr("kind.barcode"), iconBarcode}, {kindQR, tr("kind.qr"), iconQR},
+				{kindLine, tr("sidebar.line"), iconLine}, {kindTable, tr("kind.table"), iconTable},
 			}
 			for i := 0; i < len(tools); i += 2 {
 				ui.Row(c.Key(i)).Gap(8).Children(func() {
@@ -293,10 +316,10 @@ func (e *editor) sidebar(c *ui.Context) {
 		hairline(c.Key("divider"))
 
 		ui.Row(c.Key("layer-head")).Padding(14, panelPadding, 8, panelPadding).Gap(7).Shrink(0).AlignItems(ui.Center).Children(func() {
-			sectionHeading(c, "图层")
+			sectionHeading(c, tr("sidebar.layers"))
 			ui.Row(c.Key("count")).Height(17).MinWidth(17).Padding(0, 5).Radius(9).Shrink(0).
-				Background(ui.Hex(colorHover)).Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-				ui.Textf(c, "%d", len(l.Items)).FontSize(10).FontWeight(600).TextColor(ui.Hex(colorMuted))
+				Background(colors.Hover).Justify(ui.Center).AlignItems(ui.Center).Children(func() {
+				ui.Textf(c, "%d", len(l.Items)).FontSize(10).FontWeight(600).TextColor(colors.Muted)
 			})
 		})
 
@@ -320,18 +343,19 @@ func (e *editor) sidebar(c *ui.Context) {
 
 // toolCard 显示可点击或拖入画布的元素工具卡片
 func (e *editor) toolCard(c *ui.Context, kind itemKind, name string, icon *ui.SVG) {
-	ink := ui.Hex(colorBody)
+	// 图标比文字淡一档，悬停时点亮成主色
+	ink := colors.Muted
 	card := ui.ButtonBase(c).Grow(1).Height(60).Radius(10).Column().Gap(7).
 		AlignItems(ui.Center).Justify(ui.Center).Role(ui.RoleButton).Label(name).
 		Cursor(ui.CursorPointer).Drag(kind).
-		BorderWidth(1).BorderColor(ui.Hex("#E8ECF2")).Background(ui.Hex(colorFieldBg))
+		BorderWidth(1).BorderColor(colors.CardBorder).Background(colors.Tile)
 	if card.Hovered() {
-		card.BorderColor(ui.Hex("#C7D2E3")).Background(ui.Hex(colorPanel))
-		ink = ui.Hex(colorAccent)
+		card.BorderColor(colors.BorderHover).Background(colors.TileHover)
+		ink = colors.Accent
 	}
 	card.Children(func() {
 		ui.Icon(c, icon).Size(19, 19).TextColor(ink)
-		ui.Text(c, name).FontSize(12).FontWeight(500).TextColor(ui.Hex(colorBody))
+		ui.Text(c, name).FontSize(12).FontWeight(500).TextColor(colors.Body)
 	})
 	if x, y, ok := e.toolPosition(c, card); ok {
 		if kind == kindImage {
@@ -365,11 +389,11 @@ func (e *editor) toolPosition(c *ui.Context, button ui.Element) (x, y float64, o
 func (e *editor) layerRow(c *ui.Context, index int) {
 	a := &e.label.Items[index]
 	selected := index == e.selected
-	ink, name, size := colorFaint, colorBody, colorFaint
-	chip, chipBorder := colorLayerChip, colorHairline
+	ink, name, size := colors.Faint, colors.Body, colors.Faint
+	chip, chipBorder := colors.LayerChip, colors.Hairline
 	if selected {
-		ink, name, size = colorAccent, colorText, colorMuted
-		chip, chipBorder = colorPanel, colorFieldBorder
+		ink, name, size = colors.Accent, colors.Text, colors.Muted
+		chip, chipBorder = colors.Panel, colors.FieldBorder
 	}
 	weight := 500
 	if selected {
@@ -379,19 +403,19 @@ func (e *editor) layerRow(c *ui.Context, index int) {
 		AlignItems(ui.Center).Role(ui.RoleButton).Label(layerName(a)).AccessSelected(selected)
 	switch {
 	case selected:
-		row.Background(ui.Hex(colorSelected))
+		row.Background(colors.Selected)
 	case row.Hovered():
-		row.Background(ui.Hex(colorLayerHover))
+		row.Background(colors.LayerHover)
 	}
 	row.Children(func() {
 		ui.Row(c.Key("icon")).Size(22, 22).Radius(5).Shrink(0).BorderWidth(1).
-			BorderColor(ui.Hex(chipBorder)).Background(ui.Hex(chip)).
+			BorderColor(chipBorder).Background(chip).
 			Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, layerIcon(a.Kind)).Size(13, 13).TextColor(ui.Hex(ink))
+			ui.Icon(c, layerIcon(a.Kind)).Size(13, 13).TextColor(ink)
 		})
 		ui.Text(c, layerName(a)).FontSize(12.5).FontWeight(weight).SingleLine().
-			TextColor(ui.Hex(name)).Grow(1)
-		ui.Text(c, fmt.Sprintf("%g × %g", a.W, a.H)).FontSize(10).Shrink(0).TextColor(ui.Hex(size))
+			TextColor(name).Grow(1)
+		ui.Text(c, fmt.Sprintf("%g × %g", a.W, a.H)).FontSize(10).Shrink(0).TextColor(size)
 	})
 	if row.Clicked() {
 		e.selectItem(index)
@@ -404,7 +428,7 @@ func layerName(a *item) string {
 		if name := []rune(a.textContent().PlainText()); len(name) > 0 {
 			return string(name[:min(12, len(name))])
 		}
-		return "文字"
+		return tr("kind.text")
 	}
 	return kindTitle(a.Kind)
 }
@@ -412,13 +436,13 @@ func layerName(a *item) string {
 // emptyLayers 在没有元素时提示从左侧添加
 func emptyLayers(c *ui.Context) {
 	ui.Column(c).Margin(0, 6, 0, 0).Padding(26, 14).Radius(10).Gap(10).
-		BorderWidth(1).BorderStyle(ui.BorderDashed).BorderColor(ui.Hex("#DDE5EF")).
-		Background(ui.Hex(colorFieldBg)).AlignItems(ui.Center).Children(func() {
-		ui.Row(c.Key("badge")).Size(34, 34).Radius(8).Background(ui.Hex("#F2F5F9")).
+		BorderWidth(1).BorderStyle(ui.BorderDashed).BorderColor(colors.DashBorder).
+		Background(colors.FieldBg).AlignItems(ui.Center).Children(func() {
+		ui.Row(c.Key("badge")).Size(34, 34).Radius(8).Background(colors.ChipAlt).
 			Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, iconStack).Size(17, 17).TextColor(ui.Hex(colorRulerText))
+			ui.Icon(c, iconStack).Size(17, 17).TextColor(colors.RulerText)
 		})
-		ui.Text(c, "暂无元素").FontSize(11.5).FontWeight(600).TextColor(ui.Hex("#475467"))
+		ui.Text(c, tr("sidebar.empty")).FontSize(11.5).FontWeight(600).TextColor(colors.Body2)
 	})
 }
 
@@ -426,22 +450,22 @@ func emptyLayers(c *ui.Context) {
 func (e *editor) paperSettings(c *ui.Context) {
 	l := e.label
 	button := ui.ButtonBase(c).Height(52).FillWidth().Padding(0, 11).Gap(10).Radius(10).
-		AlignItems(ui.Center).Role(ui.RoleButton).Label("标签纸张设置").Cursor(ui.CursorPointer).
-		BorderWidth(1).BorderColor(ui.Hex(colorDivider)).Background(ui.Hex(colorLayerChip))
+		AlignItems(ui.Center).Role(ui.RoleButton).Label(tr("sidebar.paper")).Cursor(ui.CursorPointer).
+		BorderWidth(1).BorderColor(colors.CardBorder).Background(colors.Tile)
 	if button.Hovered() {
-		button.Background(ui.Hex("#F2F5F9")).BorderColor(ui.Hex("#D6DEE8"))
+		button.Background(colors.TileHover).BorderColor(colors.BorderHover)
 	}
 	button.Children(func() {
 		ui.Row(c.Key("icon")).Size(30, 30).Radius(7).Shrink(0).BorderWidth(1).
-			BorderColor(ui.Hex(colorFieldBorder)).Background(ui.Hex(colorPanel)).
+			BorderColor(colors.FieldBorder).Background(colors.Panel).
 			Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, iconPaper).Size(16, 16).TextColor(ui.Hex("#475467"))
+			ui.Icon(c, iconPaper).Size(16, 16).TextColor(colors.Body2)
 		})
 		ui.Column(c.Key("text")).Grow(1).MinWidth(0).Gap(2).AlignItems(ui.Start).Children(func() {
-			ui.Textf(c, "%g × %g mm", l.Width, l.Height).FontSize(12).FontWeight(600).TextColor(ui.Hex(colorText))
-			ui.Textf(c, "%d DPI", l.DPI).FontSize(10).TextColor(ui.Hex(colorMuted))
+			ui.Textf(c, "%g × %g mm", l.Width, l.Height).FontSize(12).FontWeight(600).TextColor(colors.Text)
+			ui.Textf(c, "%d DPI", l.DPI).FontSize(10).TextColor(colors.Muted)
 		})
-		ui.Icon(c, iconChevron).Size(14, 14).Shrink(0).TextColor(ui.Hex(colorFaint))
+		ui.Icon(c, iconChevron).Size(14, 14).Shrink(0).TextColor(colors.Faint)
 	})
 
 	open := ui.Local(button, "open", func() bool { return false })
@@ -452,8 +476,8 @@ func (e *editor) paperSettings(c *ui.Context) {
 		ui.Column(c.Key("fields")).Width(228).Padding(12).Gap(10).Children(func() {
 			w, h, dpi := l.Width, l.Height, l.DPI
 			ui.Row(c.Key("paper-size")).Gap(8).Children(func() {
-				inspectorDimension(c, "纸宽", &l.Width, minimumSide, maximumSide)
-				inspectorDimension(c, "纸高", &l.Height, minimumSide, maximumSide)
+				inspectorDimension(c, tr("sidebar.paperWidth"), &l.Width, minimumSide, maximumSide)
+				inspectorDimension(c, tr("sidebar.paperHeight"), &l.Height, minimumSide, maximumSide)
 			})
 			if w != l.Width || h != l.Height {
 				for i := range l.Items {
@@ -464,7 +488,7 @@ func (e *editor) paperSettings(c *ui.Context) {
 			resolutions := [...]int{203, 300, 600}
 			selectedDPI := slices.Index(resolutions[:], l.DPI)
 			ui.Column(c.Key("dpi")).Gap(5).Children(func() {
-				ui.Text(c, "打印分辨率").FontSize(10).TextColor(ui.Hex(colorMuted))
+				ui.Text(c, tr("sidebar.dpi")).FontSize(10).TextColor(colors.Muted)
 				optionRow(c.Key("segments"), []string{"203", "300", "600"}, selectedDPI, func(i int) {
 					l.DPI = resolutions[i]
 				})
@@ -490,7 +514,7 @@ func (e *editor) zoomBy(scale float32) {
 func (e *editor) canvasView(c *ui.Context) {
 	t := c.Theme()
 	ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
-		canvas := ui.Box(c.Key("surface")).Fill().Clip().Focusable().Label("标签画布").
+		canvas := ui.Box(c.Key("surface")).Fill().Clip().Focusable().Label(tr("canvas.label")).
 			Bind(&e.canvas).HandleInput(func(ev ui.InputEvent) bool { return e.handleCanvas(c, ev) }).
 			Draw(func(p *ui.Painter, viewport ui.Rect) { e.paintCanvas(p, viewport, t) })
 		if e.inline && (canvas.Shortcut(0, ui.KeyEscape) ||
@@ -545,17 +569,17 @@ func (e *editor) emptyPaper(c *ui.Context, paper ui.Rect) {
 	ui.Column(c).Absolute().Left(paper.X).Top(paper.Y).Size(paper.W, paper.H).Padding(26).
 		PassThrough().Children(func() {
 		ui.Column(c.Key("card")).Fill().Gap(18).Radius(6).PassThrough().
-			BorderWidth(1.5).BorderStyle(ui.BorderDashed).BorderColor(ui.Hex("#D7E0EA")).
-			Background(ui.Hex("#FCFDFE")).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-			ui.Row(c.Key("badge")).Size(48, 48).Radius(12).Background(ui.Hex("#F2F5F9")).
+			BorderWidth(1.5).BorderStyle(ui.BorderDashed).BorderColor(colors.PaperLine).
+			Background(colors.Paper).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
+			ui.Row(c.Key("badge")).Size(48, 48).Radius(12).Background(colors.PaperChip).
 				Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, iconPlus).Size(22, 22).TextColor(ui.Hex(colorMuted))
+				ui.Icon(c, iconPlus).Size(22, 22).TextColor(colors.PaperMuted)
 			})
 			ui.Row(c.Key("actions")).Gap(8).Children(func() {
-				accentAction(c.Key("add-text"), "添加文字", iconText, true, func() {
+				accentAction(c.Key("add-text"), tr("canvas.addText"), iconText, true, func() {
 					e.add(item{Kind: kindText, X: 2, Y: 2})
 				})
-				outlineAction(c.Key("import"), "导入图片", iconPicture, true, func() {
+				paperOutlineAction(c.Key("import"), tr("canvas.import"), iconPicture, true, func() {
 					e.perform(func() error { return e.importImage(2, 2) })
 				})
 			})
@@ -576,11 +600,10 @@ func (e *editor) textToolbar(c *ui.Context, a *item, paper ui.Rect) {
 		top = box.Y + box.H + 10
 	}
 	left := max(6, box.X)
-	t := c.Theme()
 	ui.Row(c).Absolute().Left(left).Top(top).Height(38).Padding(0, 5).Gap(1).
-		AlignItems(ui.Center).Radius(9).Background(ui.Hex(colorPanel)).
-		BorderWidth(1).BorderColor(ui.Hex(colorFieldBorder)).
-		Shadow(0, 10, 24, 0, ui.RGBA(16, 24, 40, 0.15)).Children(func() {
+		AlignItems(ui.Center).Radius(9).Background(colors.Floating).
+		BorderWidth(1).BorderColor(colors.FieldBorder).
+		Shadow(0, 10, 24, 0, colors.ShadowMid).Children(func() {
 		formats := doc.Formatting()
 		for _, style := range []struct {
 			title     string
@@ -592,20 +615,20 @@ func (e *editor) textToolbar(c *ui.Context, a *item, paper ui.Rect) {
 			italic    bool
 			underline bool
 		}{
-			{"加粗", "B", formats.Bold, doc.ToggleBold, 12, 800, false, false},
-			{"斜体", "I", formats.Italic, doc.ToggleItalic, 13, 400, true, false},
-			{"下划线", "U", formats.Underline, doc.ToggleUnderline, 12, 600, false, true},
+			{tr("text.bold"), "B", formats.Bold, doc.ToggleBold, 12, 800, false, false},
+			{tr("text.italic"), "I", formats.Italic, doc.ToggleItalic, 13, 400, true, false},
+			{tr("text.underline"), "U", formats.Underline, doc.ToggleUnderline, 12, 600, false, true},
 		} {
 			style := style
 			active := style.state == richtext.FormatOn
 			button := ui.ButtonBase(c.Key(style.title)).Size(28, 28).Radius(6).Role(ui.RoleButton).
 				Label(style.title).AccessSelected(active)
-			ink := ui.Hex("#475467")
+			ink := colors.Body2
 			if active {
-				button.Background(ui.Hex(colorChip))
-				ink = t.Accent
+				button.Background(colors.ChipSelected)
+				ink = colors.Accent
 			} else if button.Hovered() {
-				button.Background(ui.Hex(colorHover))
+				button.Background(colors.Hover)
 			}
 			button.Children(func() {
 				text := ui.Text(c, style.glyph).FontSize(style.fontSize).FontWeight(style.weight).TextColor(ink)
@@ -623,17 +646,17 @@ func (e *editor) textToolbar(c *ui.Context, a *item, paper ui.Rect) {
 				}
 			}
 		}
-		ui.Box(c.Key("rule")).Width(1).Height(18).Margin(4, 4).Shrink(0).Background(ui.Hex(colorDivider))
-		for i, label := range [3]string{"左对齐", "水平居中", "右对齐"} {
+		ui.Box(c.Key("rule")).Width(1).Height(18).Margin(4, 4).Shrink(0).Background(colors.Divider)
+		for i, label := range [3]string{tr("text.alignLeft"), tr("text.alignCenter"), tr("text.alignRight")} {
 			active := formats.Paragraph.Align == ui.Align(i)
 			button := ui.ButtonBase(c.Key(label)).Size(28, 28).Radius(6).Role(ui.RoleButton).
 				Label(label).AccessSelected(active)
-			ink := ui.Hex("#475467")
+			ink := colors.Body2
 			if active {
-				button.Background(ui.Hex(colorChip))
-				ink = t.Accent
+				button.Background(colors.ChipSelected)
+				ink = colors.Accent
 			} else if button.Hovered() {
-				button.Background(ui.Hex(colorHover))
+				button.Background(colors.Hover)
 			}
 			align := ui.Align(i)
 			button.Children(func() {
@@ -652,31 +675,31 @@ func (e *editor) textToolbar(c *ui.Context, a *item, paper ui.Rect) {
 // zoomControl 在画布右下角显示缩放按钮和适合窗口
 func (e *editor) zoomControl(c *ui.Context, viewport ui.Rect) {
 	ui.Row(c).Absolute().Right(18).Bottom(18).Padding(4).Gap(2).Radius(10).
-		AlignItems(ui.Center).Background(ui.Hex(colorPanel)).
-		BorderWidth(1).BorderColor(ui.Hex(colorFieldBorder)).
-		Shadow(0, 6, 20, 0, ui.RGBA(16, 24, 40, 0.10)).Children(func() {
-		iconAction(c.Key("out"), "缩小", iconMinus, func() { e.zoomBy(1 / 1.25) })
+		AlignItems(ui.Center).Background(colors.Floating).
+		BorderWidth(1).BorderColor(colors.FieldBorder).
+		Shadow(0, 6, 20, 0, colors.ShadowSubtle).Children(func() {
+		iconAction(c.Key("out"), tr("canvas.zoomOut"), iconMinus, func() { e.zoomBy(1 / 1.25) })
 		percent := ui.ButtonBase(c.Key("percent")).Height(28).Padding(0, 6).Radius(6).
-			Role(ui.RoleButton).Label("缩放比例").Tooltip("适合窗口")
+			Role(ui.RoleButton).Label(tr("canvas.zoomLevel")).Tooltip(tr("canvas.fit"))
 		if percent.Hovered() {
-			percent.Background(ui.Hex(colorHover))
+			percent.Background(colors.Hover)
 		}
 		percent.Children(func() {
-			ui.Textf(c, "%.0f%%", e.zoom*100).FontSize(11).FontWeight(600).TextColor(ui.Hex(colorBody))
+			ui.Textf(c, "%.0f%%", e.zoom*100).FontSize(11).FontWeight(600).TextColor(colors.Body)
 		})
 		if percent.Clicked() {
 			e.fitView()
 		}
-		iconAction(c.Key("in"), "放大", iconPlus, func() { e.zoomBy(1.25) })
-		ui.Box(c.Key("rule")).Width(1).Height(16).Margin(2, 2).Shrink(0).Background(ui.Hex(colorDivider))
+		iconAction(c.Key("in"), tr("canvas.zoomIn"), iconPlus, func() { e.zoomBy(1.25) })
+		ui.Box(c.Key("rule")).Width(1).Height(16).Margin(2, 2).Shrink(0).Background(colors.Divider)
 		fit := ui.ButtonBase(c.Key("fit")).Height(28).Padding(0, 7).Gap(5).Radius(6).
-			Role(ui.RoleButton).Label("适合窗口")
+			Role(ui.RoleButton).Label(tr("canvas.fit"))
 		if fit.Hovered() {
-			fit.Background(ui.Hex(colorHover))
+			fit.Background(colors.Hover)
 		}
 		fit.Children(func() {
-			ui.Icon(c, iconFit).Size(13, 13).TextColor(ui.Hex("#475467"))
-			ui.Text(c, "适合窗口").FontSize(10.5).TextColor(ui.Hex("#475467"))
+			ui.Icon(c, iconFit).Size(13, 13).TextColor(colors.Body2)
+			ui.Text(c, tr("canvas.fit")).FontSize(10.5).TextColor(colors.Body2)
 		})
 		if fit.Clicked() {
 			e.fitView()
@@ -688,10 +711,10 @@ func (e *editor) zoomControl(c *ui.Context, viewport ui.Rect) {
 func iconAction(c *ui.Context, label string, icon *ui.SVG, action func()) {
 	button := ui.ButtonBase(c).Size(28, 28).Radius(6).Role(ui.RoleButton).Label(label).Tooltip(label)
 	if button.Hovered() {
-		button.Background(ui.Hex(colorHover))
+		button.Background(colors.Hover)
 	}
 	button.Children(func() {
-		ui.Icon(c, icon).Size(14, 14).TextColor(ui.Hex("#475467"))
+		ui.Icon(c, icon).Size(14, 14).TextColor(colors.Body2)
 	})
 	if button.Clicked() {
 		action()
@@ -700,31 +723,31 @@ func iconAction(c *ui.Context, label string, icon *ui.SVG, action func()) {
 
 // paintCanvas 绘制点阵背景、纸张、标尺、选中框和对齐线
 func (e *editor) paintCanvas(p *ui.Painter, viewport ui.Rect, t *ui.Theme) {
-	p.Fill(viewport, ui.Hex(colorCanvas), 0)
+	p.Fill(viewport, colors.Canvas, 0)
 	e.paintDots(p, viewport)
 	p.Clip(viewport, 0, func() {
 		paper := e.paperRect(viewport)
-		p.Shadow(paper, 0, 0, 10, 30, -6, ui.RGBA(16, 24, 40, 0.18))
-		p.Stroke(paper, ui.Hex(colorPaperBorder), 0, 1)
+		p.Shadow(paper, 0, 0, 10, 30, -6, colors.ShadowStrong)
+		p.Stroke(paper, colors.PaperBorder, 0, 1)
 		e.label.paint(p, paper, false)
 		e.paintRulers(p, viewport, paper)
 		if a := e.selectedItem(); a != nil {
 			box := a.selectionBox(e.label, paper)
-			p.Stroke(box, t.Accent, 0, 1.5)
+			p.Stroke(box, colors.Accent, 0, 1.5)
 			if e.cells != nil && !e.inline {
 				cells := a.rangeBox(box, e.cells.bounds(a))
-				p.Fill(cells, t.Accent.Alpha(0.14), 0)
-				p.Stroke(cells, t.Accent, 0, 1.5)
+				p.Fill(cells, colors.Accent.Alpha(0.14), 0)
+				p.Stroke(cells, colors.Accent, 0, 1.5)
 			}
 			if !e.inline {
 				for _, handle := range handleRects(box) {
-					p.Fill(handle, ui.Hex(colorPanel), 2)
-					p.Stroke(handle, t.Accent, 2, 1.5)
+					p.Fill(handle, colors.Paper, 2)
+					p.Stroke(handle, colors.Accent, 2, 1.5)
 				}
 			}
 		}
 		if d := e.drag; d != nil {
-			color := ui.Hex(colorGuide)
+			color := colors.Guide
 			if d.guideX.visible {
 				x := paper.X + float32(d.guideX.at/e.label.Width)*paper.W
 				p.Line(x, paper.Y, x, paper.Y+paper.H, 1, color)
@@ -742,7 +765,7 @@ func (e *editor) paintDots(p *ui.Painter, viewport ui.Rect) {
 	if !prefs.ShowGrid {
 		return
 	}
-	color := ui.Hex(colorDot)
+	color := colors.Dot
 	for y := float32(canvasDotStep); y < viewport.H; y += canvasDotStep {
 		for x := float32(canvasDotStep); x < viewport.W; x += canvasDotStep {
 			p.Fill(ui.Rect{X: viewport.X + x, Y: viewport.Y + y, W: canvasDotSize, H: canvasDotSize}, color, 1)
@@ -752,7 +775,7 @@ func (e *editor) paintDots(p *ui.Painter, viewport ui.Rect) {
 
 // paintRulers 在纸张上方和左侧标注标签的毫米尺寸
 func (e *editor) paintRulers(p *ui.Painter, viewport, paper ui.Rect) {
-	line := ui.Hex(colorRuler)
+	line := colors.Ruler
 	if top := paper.Y - 14; top > viewport.Y+8 {
 		p.Line(paper.X, top, paper.X+paper.W, top, 1, line)
 		p.Line(paper.X, top-3, paper.X, top+3, 1, line)
@@ -760,8 +783,8 @@ func (e *editor) paintRulers(p *ui.Painter, viewport, paper ui.Rect) {
 		layout := ui.ShapeText(fmt.Sprintf("%g mm", e.label.Width), ui.Font{Size: 10}, 0)
 		w, h := layout.Size()
 		x := paper.X + (paper.W-w)/2
-		p.Fill(ui.Rect{X: x - 4, Y: top - h/2, W: w + 8, H: h}, ui.Hex(colorCanvas), 0)
-		p.TextLayout(layout, x, top-h/2, ui.Hex(colorRulerText))
+		p.Fill(ui.Rect{X: x - 4, Y: top - h/2, W: w + 8, H: h}, colors.Canvas, 0)
+		p.TextLayout(layout, x, top-h/2, colors.RulerText)
 	}
 	left := paper.X - 16
 	if left <= viewport.X+8 {
@@ -781,8 +804,8 @@ func (e *editor) heightRuler(c *ui.Context, paper, viewport ui.Rect) {
 	ui.Box(c).Absolute().Left(left-40).Top(paper.Y+paper.H/2-10).Size(60, 20).PassThrough().
 		Justify(ui.Center).AlignItems(ui.Center).Children(func() {
 		text := ui.Textf(c.Key("text"), "%g mm", e.label.Height).FontSize(10).
-			SingleLine().TextColor(ui.Hex(colorRulerText))
-		text.Rotate(90).Background(ui.Hex(colorCanvas))
+			SingleLine().TextColor(colors.RulerText)
+		text.Rotate(90).Background(colors.Canvas)
 	})
 }
 
@@ -990,7 +1013,7 @@ func roundMM(value float64) float64 {
 func (e *editor) add(a item) {
 	switch a.Kind {
 	case kindText:
-		a.W, a.H, a.FontSize, a.Value = 24, 6, 4, "标签文字"
+		a.W, a.H, a.FontSize, a.Value = 24, 6, 4, tr("default.text")
 	case kindQR:
 		a.W, a.H, a.Value = 18, 18, "GoLabel"
 	case kindBarcode:
@@ -1032,8 +1055,8 @@ func (e *editor) perform(action func() error) {
 // importImage 打开图片并将原图内嵌到标签的指定位置
 func (e *editor) importImage(x, y float64) error {
 	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-		Parent: e.window, Title: "添加图片",
-		Filters: []mygo.FileFilter{{Name: "PNG 或 JPEG", Extensions: []string{"png", "jpg", "jpeg"}}},
+		Parent: e.window, Title: tr("dialog.importTitle"),
+		Filters: []mygo.FileFilter{{Name: tr("dialog.importFilter"), Extensions: []string{"png", "jpg", "jpeg"}}},
 	})
 	if err != nil || len(paths) == 0 {
 		return err
@@ -1057,7 +1080,7 @@ func (e *editor) exportPDF() error {
 		return err
 	}
 	path, err := mygo.Dialog.Save(mygo.SaveDialogOptions{
-		Parent: e.window, Title: "导出标签 PDF", DefaultPath: "标签.pdf",
+		Parent: e.window, Title: tr("dialog.exportTitle"), DefaultPath: tr("dialog.exportName"),
 		Filters: []mygo.FileFilter{{Name: "PDF", Extensions: []string{"pdf"}}},
 	})
 	if err != nil || path == "" {
@@ -1066,7 +1089,7 @@ func (e *editor) exportPDF() error {
 	if err := writePDFFile(path, data); err != nil {
 		return err
 	}
-	e.status = "已导出 PDF"
+	e.status = tr("status.exported")
 	return nil
 }
 
@@ -1074,7 +1097,7 @@ func (e *editor) exportPDF() error {
 func (e *editor) print() error {
 	sent, err := e.graphics.print(e.label, e.documentName(), e.window.NativeHandle())
 	if sent {
-		e.status = "已提交打印任务"
+		e.status = tr("status.printed")
 	}
 	return err
 }
@@ -1106,7 +1129,7 @@ func inspectorDimension(c *ui.Context, name string, value *float64, low, high fl
 		decimals = 0
 	}
 	ui.Column(field).Grow(1).MinWidth(0).Gap(5).Children(func() {
-		ui.Text(field, name).FontSize(10).TextColor(ui.Hex(colorMuted))
+		ui.Text(field, name).FontSize(10).TextColor(colors.Muted)
 		inspectorNumber(field, name, "mm", 0, value, low, high, decimals, false)
 	})
 }
@@ -1119,10 +1142,10 @@ func inspectorNumber(c *ui.Context, name, unit string, width float32, value *flo
 	format := func(value float64) string { return strconv.FormatFloat(value, 'f', decimals, 64) }
 	label := name
 	if unit != "" {
-		label += "（" + unit + "）"
+		label += trf("unit.suffix", unit)
 	}
 	row := ui.Row(c.Key("row")).Height(34).MinWidth(0).AlignItems(ui.Center).Radius(7).Clip().
-		Border(1, ui.Hex(colorFieldBorder)).Background(ui.Hex(colorPanel))
+		Border(1, colors.FieldBorder).Background(colors.Panel)
 	if width > 0 {
 		row.Width(width)
 	}
@@ -1151,13 +1174,13 @@ func inspectorNumber(c *ui.Context, name, unit string, width float32, value *flo
 			*value = min(high, max(low, math.Round((*value+delta)*scale)/scale))
 		}
 		if unit != "" {
-			ui.Text(c, unit).FontSize(10).TextColor(ui.Hex(colorFaint)).Margin(0, 4, 0, 0)
+			ui.Text(c, unit).FontSize(10).TextColor(colors.Faint).Margin(0, 4, 0, 0)
 		}
 		stepped := false
 		if stepper {
 			stepped = ui.Stepper(c.Key("stepper"), value, low, high, step).Width(20).Height(32).Radius(0).
-				BorderWidth(0, 0, 0, 1).BorderColor(ui.Hex(colorFieldBorder)).
-				Label(name + "步进").Changed()
+				BorderWidth(0, 0, 0, 1).BorderColor(colors.FieldBorder).
+				Label(name + tr("unit.stepper")).Changed()
 		}
 		if !in.Focused() || stepped || delta != 0 {
 			draft.text = format(*value)

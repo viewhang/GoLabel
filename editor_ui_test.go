@@ -419,3 +419,157 @@ func TestTemplateWithBarcodeApplies(t *testing.T) {
 		t.Fatal("使用模板后对话框没有关闭")
 	}
 }
+
+// TestThemeModeSwitches 验证浅色、深色和跟随系统三种外观都能生效
+func TestThemeModeSwitches(t *testing.T) {
+	restorePrefs, restoreSystem := prefs, systemDark
+	t.Cleanup(func() {
+		prefs, systemDark = restorePrefs, restoreSystem
+		resetSystemDarkCache()
+		applyTheme()
+	})
+
+	useThemeMode(themeModeDark)
+	if !colors.Dark || !appTheme().Dark {
+		t.Fatal("深色模式没有生效")
+	}
+	if appTheme().Background != darkPalette.Panel {
+		t.Fatal("深色主题的底色没有跟着换")
+	}
+
+	useThemeMode(themeModeLight)
+	if colors.Dark || appTheme().Dark {
+		t.Fatal("浅色模式没有生效")
+	}
+
+	systemDark = func() bool { return true }
+	useThemeMode(themeModeSystem)
+	if !colors.Dark {
+		t.Fatal("跟随系统时没有取到系统的深色外观")
+	}
+
+	systemDark = func() bool { return false }
+	resetSystemDarkCache()
+	applyTheme()
+	if colors.Dark {
+		t.Fatal("系统改回浅色后没有跟上")
+	}
+}
+
+// TestThemeCardSwitches 验证点击设置里的「深色」卡片会切换并保存外观
+func TestThemeCardSwitches(t *testing.T) {
+	restore := prefs
+	t.Cleanup(func() {
+		prefs = restore
+		resetSystemDarkCache()
+		applyTheme()
+	})
+	prefs.Theme = themeNameLight
+	applyTheme()
+
+	e := &editor{label: sampleLabel(), selected: -1, zoom: 1}
+	tt := ui.NewTester(e.view, 1280, 800)
+	tt.Frame()
+	if err := tt.Click("设置"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if err := tt.Click("深色"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Frame()
+	if prefs.Theme != themeNameDark {
+		t.Fatalf("外观没有保存为深色：%q", prefs.Theme)
+	}
+	if !colors.Dark {
+		t.Fatal("点击深色卡片后配色没有切换")
+	}
+	if !tt.HasText("通用") {
+		t.Fatalf("深色下设置页没有正常渲染：%v", tt.Texts())
+	}
+}
+
+// TestDarkPaletteKeepsPaperWhite 验证深色下标签纸仍是白色，内容颜色不受主题影响
+func TestDarkPaletteKeepsPaperWhite(t *testing.T) {
+	if darkPalette.Paper != lightPalette.Paper {
+		t.Fatal("标签纸张在深浅主题下应该保持同一种颜色")
+	}
+	if darkPalette.Dark == lightPalette.Dark {
+		t.Fatal("两套配色的 Dark 标记应该不同")
+	}
+	if darkPalette.Text == lightPalette.Text {
+		t.Fatal("深色主题的文字颜色应该单独设置")
+	}
+	// 深色下画布要比面板更暗，保证纸张和面板的层次
+	if brightness(darkPalette.Canvas) >= brightness(darkPalette.Panel) {
+		t.Fatal("深色主题中画布应该比面板更暗")
+	}
+	if brightness(lightPalette.Canvas) >= brightness(lightPalette.Panel) {
+		t.Fatal("浅色主题中画布应该比面板更暗")
+	}
+}
+
+// TestThemePreferenceRoundTrip 验证外观模式会写入配置并在下次启动恢复
+func TestThemePreferenceRoundTrip(t *testing.T) {
+	restore := prefs
+	t.Cleanup(func() {
+		prefs = restore
+		savePreferences()
+	})
+	prefs = defaultPreferences()
+	prefs.Theme = themeNameDark
+	savePreferences()
+	prefs = defaultPreferences()
+	loadPreferences()
+	if prefs.Theme != themeNameDark {
+		t.Fatalf("外观模式没有恢复：%q", prefs.Theme)
+	}
+	// 不认识的外观名应回落到跟随系统
+	broken := `{"theme":"sepia","defaultWidthMm":50,"defaultHeightMm":30,"defaultDpi":203}`
+	if err := os.WriteFile(settingsFile(), []byte(broken), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	prefs = defaultPreferences()
+	loadPreferences()
+	if prefs.Theme != themeNameSystem {
+		t.Fatalf("无效外观没有回落到跟随系统：%q", prefs.Theme)
+	}
+}
+
+// TestDarkPaletteMatchesDesign 校验深色配色与设计稿的深色画板一致
+func TestDarkPaletteMatchesDesign(t *testing.T) {
+	cases := []struct {
+		name string
+		got  ui.Color
+		want ui.Color
+	}{
+		{"画布", darkPalette.Canvas, ui.Hex("#0E1218")},
+		{"顶栏", darkPalette.Header, ui.Hex("#12171F")},
+		{"面板", darkPalette.Panel, ui.Hex("#151A22")},
+		{"成组控件", darkPalette.PanelAlt, ui.Hex("#11161E")},
+		{"卡片", darkPalette.Card, ui.Hex("#171D26")},
+		{"浮层", darkPalette.Floating, ui.Hex("#1B212B")},
+		{"描边", darkPalette.Divider, ui.Hex("#232B37")},
+		{"控件描边", darkPalette.FieldBorder, ui.Hex("#2C3442")},
+		{"正文", darkPalette.Text, ui.Hex("#E8EDF5")},
+		{"次级文字", darkPalette.Muted, ui.Hex("#A7B2C3")},
+		{"分组标题", darkPalette.Section, ui.Hex("#7E8A9D")},
+		{"强调", darkPalette.Accent, ui.Hex("#7C9AFF")},
+		{"主按钮", darkPalette.Primary, ui.Hex("#3D5AFE")},
+		{"点阵", darkPalette.Dot, ui.Hex("#232B37")},
+	}
+	for _, c := range cases {
+		if c.got != c.want {
+			t.Errorf("深色的%s应为 %v，实际 %v", c.name, c.want, c.got)
+		}
+	}
+	// 标签纸固定白色，深色下也不跟着变暗
+	if darkPalette.Paper != ui.Hex("#FFFFFF") {
+		t.Errorf("标签纸应为白色，实际 %v", darkPalette.Paper)
+	}
+}
+
+// brightness 返回颜色的相对亮度，用于校验深浅主题的层次
+func brightness(c ui.Color) float32 {
+	return 0.2126*float32(c.R) + 0.7152*float32(c.G) + 0.0722*float32(c.B)
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"math"
@@ -79,7 +80,7 @@ func (g *labelGraphics) print(l *label, title string, owner uintptr) (bool, erro
 		defer winGDI.NewProc("DeleteDC").Call(dlg.dc)
 	}
 	if int32(result) < 0 {
-		return false, fmt.Errorf("无法打开系统打印对话框（0x%08X）", uint32(result))
+		return false, fmt.Errorf(tr("error.printDialog"), uint32(result))
 	}
 	if dlg.action != winPrintConfirmed {
 		return false, nil
@@ -98,7 +99,7 @@ func sendWindowsPrintJob(dc uintptr, title string, l *label, raster *image.RGBA)
 	}
 	info := winDocInfo{size: int32(unsafe.Sizeof(winDocInfo{})), name: name}
 	if result, _, _ := winGDI.NewProc("StartDocW").Call(dc, uintptr(unsafe.Pointer(&info))); int32(result) <= 0 {
-		return fmt.Errorf("无法创建打印任务")
+		return errors.New(tr("error.printTask"))
 	}
 	completed := false
 	defer func() {
@@ -107,16 +108,16 @@ func sendWindowsPrintJob(dc uintptr, title string, l *label, raster *image.RGBA)
 		}
 	}()
 	if result, _, _ := winGDI.NewProc("StartPage").Call(dc); int32(result) <= 0 {
-		return fmt.Errorf("无法开始打印页面")
+		return errors.New(tr("error.printStart"))
 	}
 	if err := drawWindowsLabel(dc, l, raster); err != nil {
 		return err
 	}
 	if result, _, _ := winGDI.NewProc("EndPage").Call(dc); int32(result) <= 0 {
-		return fmt.Errorf("无法完成打印页面")
+		return errors.New(tr("error.printFinish"))
 	}
 	if result, _, _ := winGDI.NewProc("EndDoc").Call(dc); int32(result) <= 0 {
-		return fmt.Errorf("无法提交打印任务")
+		return errors.New(tr("error.printSubmit"))
 	}
 	completed = true
 	return nil
@@ -150,7 +151,7 @@ func drawWindowsLabel(dc uintptr, l *label, raster *image.RGBA) error {
 		uintptr(unsafe.Pointer(&bitmap)), 0, winSourceCopy,
 	)
 	if int32(rows) <= 0 {
-		return fmt.Errorf("无法绘制打印标签，请检查打印机纸型")
+		return errors.New(tr("error.printDraw"))
 	}
 	return nil
 }

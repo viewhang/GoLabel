@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	_ "image/jpeg"
@@ -91,41 +92,41 @@ func readLabel(r io.Reader) (*label, error) {
 	var l label
 	dec := json.NewDecoder(r)
 	if err := dec.Decode(&l); err != nil {
-		return nil, fmt.Errorf("模板格式无效：%w", err)
+		return nil, fmt.Errorf(tr("error.templateFormat"), err)
 	}
 	if err := dec.Decode(new(any)); err != io.EOF {
-		return nil, fmt.Errorf("模板包含多余内容")
+		return nil, errors.New(tr("error.templateExtra"))
 	}
 	if !within(l.Width, minimumSide, maximumSide) || !within(l.Height, minimumSide, maximumSide) || (l.DPI != 203 && l.DPI != 300 && l.DPI != 600) {
-		return nil, fmt.Errorf("模板的纸张尺寸或 DPI 无效")
+		return nil, errors.New(tr("error.templatePaper"))
 	}
 	for i := range l.Items {
 		e := &l.Items[i]
 		if !within(e.W, minimumItem, l.Width) || !within(e.H, e.minimumHeight(), l.Height) ||
 			!within(e.X, 0, l.Width-e.W+1e-8) || !within(e.Y, 0, l.Height-e.H+1e-8) {
-			return nil, fmt.Errorf("第 %d 个元素超出标签边界", i+1)
+			return nil, fmt.Errorf(tr("error.itemOutside"), i+1)
 		}
 		switch e.Kind {
 		case kindText:
 			if !within(e.FontSize, 1, 40) {
-				return nil, fmt.Errorf("第 %d 个文字元素的字号无效", i+1)
+				return nil, fmt.Errorf(tr("error.textSize"), i+1)
 			}
 			if e.BlockAlign > ui.End {
-				return nil, fmt.Errorf("第 %d 个文字元素的对齐方式无效", i+1)
+				return nil, fmt.Errorf(tr("error.textAlign"), i+1)
 			}
 		case kindImage:
 			bitmap, err := decodeImage(e.Data)
 			if err != nil {
-				return nil, fmt.Errorf("第 %d 个元素：%w", i+1, err)
+				return nil, fmt.Errorf(tr("error.itemDetail"), i+1, err)
 			}
 			e.bitmap = bitmap
 		case kindTable:
 			if !e.validTable() {
-				return nil, fmt.Errorf("第 %d 个表格元素的行列、线宽、文字或合并区域无效", i+1)
+				return nil, fmt.Errorf(tr("error.table"), i+1)
 			}
 		case kindBarcode, kindQR, kindLine:
 		default:
-			return nil, fmt.Errorf("第 %d 个元素的类型未知", i+1)
+			return nil, fmt.Errorf(tr("error.itemKind"), i+1)
 		}
 	}
 	return &l, nil
@@ -147,14 +148,14 @@ func within(value, low, high float64) bool {
 func decodeImage(data []byte) (*ui.Bitmap, error) {
 	config, _, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("请选择有效的 PNG 或 JPEG 图片")
+		return nil, errors.New(tr("error.imageType"))
 	}
 	if int64(config.Width)*int64(config.Height) > 24_000_000 {
-		return nil, fmt.Errorf("图片最多支持 2400 万像素")
+		return nil, errors.New(tr("error.imagePixels"))
 	}
 	decoded, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("无法解码图片：%w", err)
+		return nil, fmt.Errorf(tr("error.imageDecode"), err)
 	}
 	return ui.NewBitmap(decoded), nil
 }
@@ -179,23 +180,23 @@ func (e *item) constrain(l *label) {
 func (e *item) prepareSymbol(g *labelGraphics) {
 	e.symbol, e.issue = nil, nil
 	if e.Value == "" {
-		e.issue = fmt.Errorf("请输入编码内容")
+		e.issue = errors.New(tr("error.encodeEmpty"))
 		return
 	}
 	if e.Kind == kindBarcode {
 		for _, c := range e.Value {
 			if c < 32 || c > 126 {
-				e.issue = fmt.Errorf("Code 128 请输入英文、数字或 ASCII 符号")
+				e.issue = errors.New(tr("error.barcodeCharset"))
 				return
 			}
 		}
 		if len(e.Value) > 80 {
-			e.issue = fmt.Errorf("Code 128 最多输入 80 个字符")
+			e.issue = errors.New(tr("error.barcodeLength"))
 			return
 		}
 	}
 	if e.Kind == kindQR && len(e.Value) > 512 {
-		e.issue = fmt.Errorf("二维码内容最多支持 512 字节")
+		e.issue = errors.New(tr("error.qrLength"))
 		return
 	}
 	im, err := g.symbolImage(e.Kind, e.Value)
@@ -309,7 +310,7 @@ func (e *item) paintSymbol(p *ui.Painter, rect ui.Rect, black, white ui.Color, p
 // render 按选定 DPI 生成打印位图并检查码的点阵大小
 func (l *label) render() (*image.RGBA, error) {
 	if len(l.Items) == 0 {
-		return nil, fmt.Errorf("请先添加标签内容")
+		return nil, errors.New(tr("error.emptyLabel"))
 	}
 	width := int(math.Round(l.Width * float64(l.DPI) / 25.4))
 	height := int(math.Round(l.Height * float64(l.DPI) / 25.4))
@@ -317,10 +318,10 @@ func (l *label) render() (*image.RGBA, error) {
 	for i := range l.Items {
 		e := &l.Items[i]
 		if e.issue != nil {
-			return nil, fmt.Errorf("第 %d 个元素：%w", i+1, e.issue)
+			return nil, fmt.Errorf(tr("error.itemDetail"), i+1, e.issue)
 		}
 		if e.symbol != nil && e.moduleWidth(e.box(l, page)) < 2 {
-			return nil, fmt.Errorf("第 %d 个码的模块小于两个打印点，请放大元素或缩短码值", i+1)
+			return nil, fmt.Errorf(tr("error.modulesNarrow"), i+1)
 		}
 	}
 	img := ui.Render(func(c *ui.Context) {

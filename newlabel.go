@@ -50,7 +50,7 @@ var nextLabel atomic.Pointer[label]
 func (f *newLabelForm) openNewLabel() {
 	*f = newLabelForm{
 		open: true, width: prefs.DefaultWidth, height: prefs.DefaultHeight,
-		dpi: prefs.DefaultDPI, name: "未命名标签",
+		dpi: prefs.DefaultDPI, name: tr("header.untitled"),
 	}
 	f.custom = f.presetIndex() < 0
 }
@@ -103,8 +103,8 @@ func (e *editor) newLabelDialog(c *ui.Context) {
 			hairline(c.Key("rule-2"))
 			ui.Row(c.Key("actions")).Gap(12).AlignItems(ui.Center).Children(func() {
 				ui.Box(c.Key("spacer")).Grow(1)
-				plainAction(c.Key("cancel"), "取消", func() { f.open = false })
-				accentAction(c.Key("create"), "创建标签", iconChevron, true, func() { e.createLabel() })
+				plainAction(c.Key("cancel"), tr("new.cancel"), func() { f.open = false })
+				accentAction(c.Key("create"), tr("new.create"), iconChevron, true, func() { e.createLabel() })
 			})
 		})
 	})
@@ -113,15 +113,15 @@ func (e *editor) newLabelDialog(c *ui.Context) {
 // dialogHeading 显示对话框标题和关闭按钮
 func (e *editor) dialogHeading(c *ui.Context) {
 	ui.Row(c).Gap(16).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "新建标签").FontSize(19).FontWeight(650).TextColor(ui.Hex(colorHeading)).Grow(1)
-		iconAction(c.Key("close"), "关闭", iconClose, func() { e.form.open = false })
+		ui.Text(c, tr("new.title")).FontSize(19).FontWeight(650).TextColor(colors.Heading).Grow(1)
+		iconAction(c.Key("close"), tr("new.close"), iconClose, func() { e.form.open = false })
 	})
 }
 
 // dialogSpecs 显示常用规格与自定义尺寸卡片
 func (e *editor) dialogSpecs(c *ui.Context) {
 	ui.Column(c).Grow(1).MinWidth(0).Gap(10).Children(func() {
-		sectionHeading(c, "规格")
+		sectionHeading(c, tr("new.specs"))
 		ui.Column(c.Key("grid")).Gap(10).Children(func() {
 			for i := 0; i < len(newLabelPresets); i += 2 {
 				ui.Row(c.Key(i)).Gap(10).Children(func() {
@@ -143,32 +143,36 @@ func (e *editor) presetCard(c *ui.Context, index int) {
 	preset := newLabelPresets[index]
 	f := &e.form
 	selected := f.presetIndex() == index
-	ink, fill, border := colorText, colorPanel, colorFieldBorder
+	ink, fill, border := colors.Text, colors.Card, colors.CardBorder
 	if selected {
-		ink, fill, border = colorAccent, "#F8FAFF", colorAccent
+		ink, fill, border = colors.Accent, colors.AccentSoft, colors.Accent
+	}
+	width := float32(1)
+	if selected {
+		width = 1.5
 	}
 	card := ui.ButtonBase(c).Grow(1).Height(newLabelPresetHeight).Padding(12).Gap(12).
 		Radius(10).AlignItems(ui.Center).Role(ui.RoleButton).Label(preset.label).
 		AccessSelected(selected).Cursor(ui.CursorPointer).
-		BorderWidth(1).BorderColor(ui.Hex(border)).Background(ui.Hex(fill))
+		BorderWidth(width).BorderColor(border).Background(fill)
 	if card.Hovered() && !selected {
-		card.BorderColor(ui.Hex("#C7D2E3")).Background(ui.Hex(colorPanel))
+		card.BorderColor(colors.BorderHover)
 	}
 	card.Children(func() {
-		ui.Row(c.Key("chip")).Size(46, 42).Radius(7).Shrink(0).Background(ui.Hex(colorChip)).
+		ui.Row(c.Key("chip")).Size(46, 42).Radius(7).Shrink(0).Background(colors.Chip).
 			Justify(ui.Center).AlignItems(ui.Center).Children(func() {
 			scale := min(float32(34)/float32(preset.width), float32(30)/float32(preset.height))
 			ui.Box(c.Key("sheet")).Width(max(8, float32(preset.width)*scale)).
-				Height(max(6, float32(preset.height)*scale)).Background(ui.Hex(colorPanel)).
-				BorderWidth(1).BorderColor(ui.Hex("#C9D3DF")).
-				Shadow(0, 1, 2, 0, ui.RGBA(16, 24, 40, 0.08))
+				Height(max(6, float32(preset.height)*scale)).Background(colors.Paper).
+				BorderWidth(1).BorderColor(colors.BorderHover).
+				Shadow(0, 1, 2, 0, colors.ShadowSoft)
 		})
-		ui.Text(c, preset.label).FontSize(13).FontWeight(600).SingleLine().Grow(1).TextColor(ui.Hex(ink))
+		ui.Text(c, preset.label).FontSize(13).FontWeight(600).SingleLine().Grow(1).TextColor(ink)
 		if selected {
 			ui.Row(c.Key("badge")).Absolute().Right(9).Top(9).Size(17, 17).Radius(9).
-				Background(ui.Hex(colorAccent)).Justify(ui.Center).AlignItems(ui.Center).
+				Background(colors.Primary).Justify(ui.Center).AlignItems(ui.Center).
 				Children(func() {
-					ui.Icon(c, iconCheck).Size(10, 10).TextColor(ui.Hex(colorPanel))
+					ui.Icon(c, iconCheck).Size(10, 10).TextColor(colors.OnAccent)
 				})
 		}
 	})
@@ -181,27 +185,27 @@ func (e *editor) presetCard(c *ui.Context, index int) {
 func (e *editor) customCard(c *ui.Context) {
 	f := &e.form
 	selected := f.custom
-	fill, border := colorFieldBg, "#C9D3DF"
+	fill, border := colors.FieldBg, colors.BorderHover
 	if selected {
-		fill, border = "#F8FAFF", colorAccent
+		fill, border = colors.AccentSoft, colors.Accent
 	}
 	card := ui.ButtonBase(c).Grow(1).Height(newLabelPresetHeight).Padding(12).Gap(12).
-		Radius(10).AlignItems(ui.Center).Role(ui.RoleButton).Label("自定义尺寸").
+		Radius(10).AlignItems(ui.Center).Role(ui.RoleButton).Label(tr("new.custom")).
 		AccessSelected(selected).Cursor(ui.CursorPointer).
-		BorderWidth(1).BorderColor(ui.Hex(border)).Background(ui.Hex(fill))
+		BorderWidth(1).BorderColor(border).Background(fill)
 	if !selected {
 		card.BorderStyle(ui.BorderDashed)
 	}
 	if card.Hovered() && !selected {
-		card.BorderColor(ui.Hex("#C7D2E3")).Background(ui.Hex(colorPanel))
+		card.BorderColor(colors.BorderStrong).Background(colors.Panel)
 	}
 	card.Children(func() {
-		ui.Row(c.Key("chip")).Size(46, 42).Radius(7).Shrink(0).Background(ui.Hex(colorChip)).
+		ui.Row(c.Key("chip")).Size(46, 42).Radius(7).Shrink(0).Background(colors.Chip).
 			Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-			ui.Icon(c, iconPlus).Size(18, 18).TextColor(ui.Hex(colorMuted))
+			ui.Icon(c, iconPlus).Size(18, 18).TextColor(colors.Muted)
 		})
-		ui.Text(c, "自定义尺寸").FontSize(13).FontWeight(600).SingleLine().Grow(1).
-			TextColor(ui.Hex(colorBody))
+		ui.Text(c, tr("new.custom")).FontSize(13).FontWeight(600).SingleLine().Grow(1).
+			TextColor(colors.Body)
 	})
 	if card.Clicked() {
 		f.custom = true
@@ -212,31 +216,31 @@ func (e *editor) customCard(c *ui.Context) {
 func (e *editor) dialogSettings(c *ui.Context) {
 	f := &e.form
 	ui.Column(c).Width(newLabelSettingsWidth).Shrink(0).Gap(12).Children(func() {
-		sectionHeading(c, "预览")
+		sectionHeading(c, tr("new.preview"))
 		ui.Box(c.Key("preview")).Height(newLabelPreviewHeight).Radius(12).
-			BorderWidth(1).BorderColor(ui.Hex(colorDivider)).Background(ui.Hex("#F4F6F9")).
+			BorderWidth(1).BorderColor(colors.Divider).Background(colors.Stage).
 			Clip().Draw(e.paintPaperPreview)
 
 		ui.Row(c.Key("size")).Gap(8).Children(func() {
-			inspectorDimension(c, "宽度", &f.width, minimumSide, maximumSide)
-			inspectorDimension(c, "高度", &f.height, minimumSide, maximumSide)
+			inspectorDimension(c, tr("new.width"), &f.width, minimumSide, maximumSide)
+			inspectorDimension(c, tr("new.height"), &f.height, minimumSide, maximumSide)
 		})
 
 		resolutions := [...]int{203, 300, 600}
 		selected := max(0, slices.Index(resolutions[:], f.dpi))
 		ui.Column(c.Key("dpi")).Gap(5).Children(func() {
-			ui.Text(c, "分辨率").FontSize(10).TextColor(ui.Hex(colorMuted))
-			segmentedRow(c.Key("segments"), "分辨率", []string{"203", "300", "600"}, selected, func(i int) {
+			ui.Text(c, tr("new.resolution")).FontSize(10).TextColor(colors.Muted)
+			segmentedRow(c.Key("segments"), tr("new.resolution"), []string{"203", "300", "600"}, selected, func(i int) {
 				f.dpi = resolutions[i]
 			})
 		})
 
 		ui.Column(c.Key("name")).Gap(5).Children(func() {
-			ui.Text(c, "名称").FontSize(10).TextColor(ui.Hex(colorMuted))
+			ui.Text(c, tr("new.name")).FontSize(10).TextColor(colors.Muted)
 			ui.Row(c.Key("field")).Height(34).Radius(7).BorderWidth(1).
-				BorderColor(ui.Hex(colorFieldBorder)).Background(ui.Hex(colorPanel)).Children(func() {
+				BorderColor(colors.FieldBorder).Background(colors.Panel).Children(func() {
 				ui.TextInputBase(c.Key("entry"), &f.name).Grow(1).MinWidth(0).Height(32).
-					Padding(0, 10).FontSize(12).Label("标签名称")
+					Padding(0, 10).FontSize(12).Label(tr("new.namePlaceholder"))
 			})
 		})
 	})
@@ -244,10 +248,10 @@ func (e *editor) dialogSettings(c *ui.Context) {
 
 // paintPaperPreview 绘制点阵底和按比例缩放的纸张示意
 func (e *editor) paintPaperPreview(p *ui.Painter, r ui.Rect) {
-	p.Fill(r, ui.Hex("#F4F6F9"), 0)
+	p.Fill(r, colors.Stage, 0)
 	for y := r.Y + 8; y < r.Y+r.H; y += 16 {
 		for x := r.X + 8; x < r.X+r.W; x += 16 {
-			p.Fill(ui.Rect{X: x - 1, Y: y - 1, W: 2, H: 2}, ui.Hex("#DCE3EB"), 1)
+			p.Fill(ui.Rect{X: x - 1, Y: y - 1, W: 2, H: 2}, colors.SketchDot, 1)
 		}
 	}
 	f := &e.form
@@ -259,8 +263,8 @@ func (e *editor) paintPaperPreview(p *ui.Painter, r ui.Rect) {
 		W: float32(width) * scale,
 		H: float32(height) * scale,
 	}
-	p.Shadow(paper, 0, 0, 10, 24, -8, ui.RGBA(16, 24, 40, 0.22))
-	p.Fill(paper, ui.Hex(colorPanel), 0)
+	p.Shadow(paper, 0, 0, 10, 24, -8, colors.ShadowStrong)
+	p.Fill(paper, colors.Paper, 0)
 	p.Stroke(paper, ui.Hex("#D5DEE8"), 0, 1)
 	paintDashedRect(p, ui.Rect{X: paper.X + 10, Y: paper.Y + 10, W: paper.W - 20, H: paper.H - 20},
 		ui.Hex("#DDE5EF"))
@@ -286,10 +290,10 @@ func plainAction(c *ui.Context, label string, action func()) {
 	button := ui.ButtonBase(c).Height(36).Padding(0, 16).Radius(8).Shrink(0).
 		AlignItems(ui.Center).Role(ui.RoleButton).Label(label).Cursor(ui.CursorPointer)
 	if button.Hovered() {
-		button.Background(ui.Hex(colorHover))
+		button.Background(colors.Hover)
 	}
 	button.Children(func() {
-		ui.Text(c, label).FontSize(12.5).FontWeight(500).TextColor(ui.Hex("#475467"))
+		ui.Text(c, label).FontSize(12.5).FontWeight(500).TextColor(colors.Body2)
 	})
 	if button.Clicked() {
 		action()

@@ -235,10 +235,10 @@ func (e *editor) tableProperties(c *ui.Context, a *item) {
 			name  string
 			count *int
 			low   int
-		}{{"行数", &a.Rows, minRows}, {"列数", &a.Columns, minColumns}} {
+		}{{tr("table.rows"), &a.Rows, minRows}, {tr("table.columns"), &a.Columns, minColumns}} {
 			field := field
 			ui.Column(c.Key(field.name)).Grow(1).MinWidth(0).Gap(5).Children(func() {
-				ui.Text(c, field.name).FontSize(10).TextColor(ui.Hex(colorMuted))
+				ui.Text(c, field.name).FontSize(10).TextColor(colors.Muted)
 				value := float64(*field.count)
 				inspectorNumber(c.Key("count"), field.name, "", 0, &value, float64(field.low), maximumTableCount, 0, false)
 				*field.count = int(value)
@@ -246,8 +246,8 @@ func (e *editor) tableProperties(c *ui.Context, a *item) {
 		}
 	})
 	ui.Column(c.Key("stroke")).Gap(5).Children(func() {
-		ui.Text(c, "线宽").FontSize(10).TextColor(ui.Hex(colorMuted))
-		inspectorNumber(c.Key("stroke"), "线宽", "mm", 0, &a.Stroke, minimumLineWidth, maximumTableStroke, 1, false)
+		ui.Text(c, tr("table.stroke")).FontSize(10).TextColor(colors.Muted)
+		inspectorNumber(c.Key("stroke"), tr("table.stroke"), "mm", 0, &a.Stroke, minimumLineWidth, maximumTableStroke, 1, false)
 	})
 	if rows != a.Rows || columns != a.Columns || stroke != a.Stroke {
 		e.changed()
@@ -261,9 +261,9 @@ func (e *editor) tableProperties(c *ui.Context, a *item) {
 		}
 	}
 	index := slices.Index(a.Merges, area)
-	title := "合并单元格"
+	title := tr("table.merge")
 	if index >= 0 {
-		title = "取消合并"
+		title = tr("table.unmerge")
 	}
 	if secondaryButton(c.Key("merge-cells"), title, e.cells != nil && area.multiple()) {
 		if index >= 0 {

@@ -19,19 +19,25 @@ const (
 	templateThumbHeight = 68
 )
 
-// labelTemplate 是模板库中的内置标签样式
+// labelTemplate 是模板库中的内置标签样式；name 和 category 是文案 key，
+// 随界面语言显示，示例内容也按语言各存一份
 type labelTemplate struct {
 	name     string
 	category string
 	width    float64
 	height   float64
 	dpi      int
-	items    []item
+	zhItems  []item
+	enItems  []item
 }
 
-// label 把模板转换成可以放进编辑器的标签
+// label 把模板转换成可以放进编辑器的标签，示例内容跟随当前界面语言
 func (t labelTemplate) label() *label {
-	return &label{Width: t.width, Height: t.height, DPI: t.dpi, Items: cloneItems(t.items)}
+	items := t.zhItems
+	if currentLang == languageEnglish {
+		items = t.enItems
+	}
+	return &label{Width: t.width, Height: t.height, DPI: t.dpi, Items: cloneItems(items)}
 }
 
 // cloneItems 深拷贝模板元素，避免多个文档共用同一份数据
@@ -70,14 +76,35 @@ func tplQR(x, y, side float64, value string) item {
 	return item{Kind: kindQR, X: x, Y: y, W: side, H: side, labelText: labelText{Value: value}}
 }
 
-// templateCategories 是模板库顶部的分类筛选
-var templateCategories = [...]string{"全部", "商品", "食品", "零售", "物流", "资产"}
+// templateCategories 是模板库顶部的分类筛选，第一项为全部
+var templateCategories = [...]string{"all", "product", "food", "retail", "shipping", "asset"}
 
-// labelTemplates 按设计稿顺序列出内置模板
+// categoryName 返回模板分类在当前语言下的名称
+func categoryName(category string) string {
+	return tr("template.category." + category)
+}
+
+// title 返回模板名称在当前语言下的写法
+func (t labelTemplate) title() string {
+	return tr(t.name)
+}
+
+// searchText 返回模板名称和分类在两种语言下的文字，便于用任一语言搜索
+func (t labelTemplate) searchText() string {
+	parts := make([]string, 0, 4)
+	for _, key := range []string{t.name, "template.category." + t.category} {
+		if message, ok := messages[key]; ok {
+			parts = append(parts, message.zh, message.en)
+		}
+	}
+	return strings.ToLower(strings.Join(parts, " "))
+}
+
+// labelTemplates 按设计稿顺序列出内置模板，中英文各有一份示例内容
 var labelTemplates = []labelTemplate{
 	{
-		name: "商品标签", category: "商品", width: 50, height: 30, dpi: 203,
-		items: []item{
+		name: "template.product", category: "product", width: 50, height: 30, dpi: 203,
+		zhItems: []item{
 			tplText(24, 2, 23, 4, 2.8, "山茶手作", ui.End),
 			tplText(3, 6, 34, 10, 8, "桂花乌龙", ui.Start),
 			tplText(3.2, 16.5, 34, 3, 2.2, "OSMANTHUS OOLONG", ui.Start),
@@ -85,10 +112,18 @@ var labelTemplates = []labelTemplate{
 			tplText(3, 20.6, 20, 4, 2.8, "净含量 50g", ui.Start),
 			tplBarcode(26, 20.6, 21, 7.4, "6901234567890"),
 		},
+		enItems: []item{
+			tplText(24, 2, 23, 4, 2.8, "CAMELLIA", ui.End),
+			tplText(3, 7, 34, 9, 6, "Oolong Tea", ui.Start),
+			tplText(3.2, 16.2, 34, 3, 2.2, "OSMANTHUS OOLONG", ui.Start),
+			tplLine(3, 19.6, 28),
+			tplText(3, 20.6, 20, 4, 2.8, "Net 50 g", ui.Start),
+			tplBarcode(26, 20.6, 21, 7.4, "6901234567890"),
+		},
 	},
 	{
-		name: "食品标签", category: "食品", width: 60, height: 40, dpi: 203,
-		items: []item{
+		name: "template.food", category: "food", width: 60, height: 40, dpi: 203,
+		zhItems: []item{
 			tplLine(3, 2.6, 54),
 			tplText(3, 5, 54, 10, 8.6, "草莓果酱", ui.Center),
 			tplText(3, 15.6, 54, 3, 2.3, "STRAWBERRY JAM", ui.Center),
@@ -97,20 +132,36 @@ var labelTemplates = []labelTemplate{
 			tplText(4, 26, 52, 4.4, 2.8, "净含量 200g", ui.Center),
 			tplLine(3, 37.4, 54),
 		},
+		enItems: []item{
+			tplLine(3, 2.6, 54),
+			tplText(3, 6, 54, 9, 6.4, "Strawberry Jam", ui.Center),
+			tplText(3, 15.6, 54, 3, 2.3, "STRAWBERRY JAM", ui.Center),
+			tplLine(3, 19.4, 54),
+			tplText(4, 21, 52, 4, 2.4, "Strawberry · sugar · lemon", ui.Center),
+			tplText(4, 26, 52, 4.4, 2.8, "Net 200 g", ui.Center),
+			tplLine(3, 37.4, 54),
+		},
 	},
 	{
-		name: "价格标签", category: "零售", width: 40, height: 30, dpi: 203,
-		items: []item{
+		name: "template.price", category: "retail", width: 40, height: 30, dpi: 203,
+		zhItems: []item{
 			tplText(3, 2.6, 22, 4, 2.8, "今日特价", ui.Start),
 			tplText(3, 6.6, 26, 14, 12, "¥39", ui.Start),
 			tplText(3, 21, 24, 4, 3.2, "特级初榨", ui.Start),
 			tplText(3, 25.4, 16, 3.6, 2.4, "500ml", ui.Start),
 			tplText(22, 25.4, 15, 3.6, 2.4, "意大利", ui.End),
 		},
+		enItems: []item{
+			tplText(3, 2.6, 26, 4, 2.6, "TODAY ONLY", ui.Start),
+			tplText(3, 6.6, 26, 14, 12, "¥39", ui.Start),
+			tplText(3, 21, 24, 4, 2.8, "Extra virgin", ui.Start),
+			tplText(3, 25.4, 16, 3.6, 2.4, "500 ml", ui.Start),
+			tplText(22, 25.4, 15, 3.6, 2.4, "Italy", ui.End),
+		},
 	},
 	{
-		name: "物流标签", category: "物流", width: 100, height: 50, dpi: 203,
-		items: []item{
+		name: "template.shipping", category: "shipping", width: 100, height: 50, dpi: 203,
+		zhItems: []item{
 			tplText(4, 3.4, 40, 5, 3.4, "STANDARD", ui.Start),
 			tplLine(4, 9.6, 92),
 			tplText(4, 12, 20, 4, 3, "收件人", ui.Start),
@@ -120,41 +171,62 @@ var labelTemplates = []labelTemplate{
 			tplBarcode(52, 12, 44, 18, "GL2048001"),
 			tplText(52, 31, 44, 3.4, 2.2, "GL2048001", ui.Center),
 		},
+		enItems: []item{
+			tplText(4, 3.4, 40, 5, 3.4, "STANDARD", ui.Start),
+			tplLine(4, 9.6, 92),
+			tplText(4, 12, 20, 4, 3, "Ship to", ui.Start),
+			tplText(4, 18, 44, 6, 2.6, "Address", ui.Start),
+			tplText(4, 26, 44, 4, 2.6, "Order GL-2048", ui.Start),
+			tplLine(4, 33, 44),
+			tplBarcode(52, 12, 44, 18, "GL2048001"),
+			tplText(52, 31, 44, 3.4, 2.2, "GL2048001", ui.Center),
+		},
 	},
 	{
-		name: "资产标签", category: "资产", width: 50, height: 20, dpi: 203,
-		items: []item{
+		name: "template.asset", category: "asset", width: 50, height: 20, dpi: 203,
+		zhItems: []item{
 			tplText(3, 2.4, 24, 3.4, 2.4, "资产编号", ui.Start),
 			tplText(3, 5.6, 30, 7.4, 5.6, "GL-0042", ui.Start),
 			tplText(3, 13.4, 34, 3.6, 2.3, "MacBook Pro · 设计部", ui.Start),
 			tplText(34, 13.4, 13, 3.6, 2.3, "2026.01", ui.End),
 		},
+		enItems: []item{
+			tplText(3, 2.4, 24, 3.4, 2.4, "ASSET ID", ui.Start),
+			tplText(3, 5.6, 30, 7.4, 5.6, "GL-0042", ui.Start),
+			tplText(3, 13.4, 34, 3.6, 2.3, "MacBook Pro · Design", ui.Start),
+			tplText(34, 13.4, 13, 3.6, 2.3, "2026.01", ui.End),
+		},
 	},
 	{
-		name: "二维码标签", category: "商品", width: 40, height: 40, dpi: 203,
-		items: []item{
+		name: "template.qr", category: "product", width: 40, height: 40, dpi: 203,
+		zhItems: []item{
 			tplText(3, 2.6, 34, 4.6, 3.2, "扫码查看", ui.Start),
 			tplQR(9, 8.4, 22, "https://golabel.example.com/p/42"),
 			tplText(3, 32.4, 34, 3.6, 2.4, "产品信息", ui.Center),
+		},
+		enItems: []item{
+			tplText(3, 2.8, 34, 4.6, 2.8, "Scan for details", ui.Start),
+			tplQR(9, 8.4, 22, "https://golabel.example.com/p/42"),
+			tplText(3, 32.4, 34, 3.6, 2.4, "Product info", ui.Center),
 		},
 	},
 }
 
 // categoryColor 返回模板分类对应的标识色
-func categoryColor(category string) string {
+func categoryColor(category string) ui.Color {
 	switch category {
-	case "商品":
-		return colorAccent
-	case "食品":
-		return "#12B76A"
-	case "零售":
-		return "#F79009"
-	case "物流":
-		return "#0BA5EC"
-	case "资产":
-		return "#7A5AF8"
+	case "product":
+		return colors.Accent
+	case "food":
+		return ui.Hex("#12B76A")
+	case "retail":
+		return ui.Hex("#F79009")
+	case "shipping":
+		return ui.Hex("#0BA5EC")
+	case "asset":
+		return ui.Hex("#7A5AF8")
 	default:
-		return colorMuted
+		return colors.Muted
 	}
 }
 
@@ -166,7 +238,7 @@ func (e *editor) visibleTemplates() []int {
 		if e.settings.category > 0 && t.category != templateCategories[e.settings.category] {
 			continue
 		}
-		if query != "" && !strings.Contains(strings.ToLower(t.name+t.category), query) {
+		if query != "" && !strings.Contains(t.searchText(), query) {
 			continue
 		}
 		indexes = append(indexes, i)
@@ -186,7 +258,7 @@ func (e *editor) selectedTemplate() labelTemplate {
 func (e *editor) useTemplate(t labelTemplate) {
 	e.settings.open = false
 	l := t.label()
-	e.title = t.name
+	e.title = t.title()
 	if e.documents == nil {
 		e.label, e.selected, e.drag = l, -1, nil
 		e.textEdit, e.cells, e.inline = nil, nil, false
@@ -213,7 +285,7 @@ func (e *editor) templatePage(c *ui.Context) {
 // templateList 显示搜索框、分类筛选和模板卡片
 func (e *editor) templateList(c *ui.Context) {
 	ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
-		ui.Text(c.Key("title"), "模板库").FontSize(20).FontWeight(650).TextColor(ui.Hex(colorHeading))
+		ui.Text(c.Key("title"), tr("template.library")).FontSize(20).FontWeight(650).TextColor(colors.Heading)
 		e.templateSearch(c.Key("search"))
 		e.templateChips(c.Key("chips"))
 		ui.Scroll(c.Key("scroll")).Grow(1).MinHeight(0).Children(func() {
@@ -238,19 +310,19 @@ func (e *editor) templateList(c *ui.Context) {
 // templateSearch 显示模板搜索输入框
 func (e *editor) templateSearch(c *ui.Context) {
 	ui.Row(c).Margin(14, 0, 0, 0).Height(36).Radius(8).Padding(0, 10).Gap(8).
-		BorderWidth(1).BorderColor(ui.Hex(colorFieldBorder)).Background(ui.Hex(colorFieldBg)).
+		BorderWidth(1).BorderColor(colors.FieldBorder).Background(colors.FieldBg).
 		AlignItems(ui.Center).Children(func() {
-		ui.Icon(c.Key("icon"), iconSearch).Size(14, 14).Shrink(0).TextColor(ui.Hex(colorFaint))
+		ui.Icon(c.Key("icon"), iconSearch).Size(14, 14).Shrink(0).TextColor(colors.Faint)
 		ui.TextInputBase(c.Key("entry"), &e.settings.query).Grow(1).MinWidth(0).Height(32).
-			FontSize(12).Label("搜索模板").Placeholder("搜索模板")
+			FontSize(12).Label(tr("template.search")).Placeholder(tr("template.search"))
 	})
 }
 
 // templateChips 显示分类筛选按钮
 func (e *editor) templateChips(c *ui.Context) {
 	ui.Row(c).Margin(10, 0, 0, 0).Gap(6).Children(func() {
-		for i, name := range templateCategories {
-			e.templateChip(c.Key(name), i, name)
+		for i, category := range templateCategories {
+			e.templateChip(c.Key(category), i, categoryName(category))
 		}
 	})
 }
@@ -258,19 +330,19 @@ func (e *editor) templateChips(c *ui.Context) {
 // templateChip 显示一个分类按钮，选中时主色描边
 func (e *editor) templateChip(c *ui.Context, index int, name string) {
 	selected := e.settings.category == index
-	ink, border, fill := colorMuted, colorFieldBorder, colorPanel
+	ink, border, fill := colors.Muted, colors.CardBorder, colors.Card
 	if selected {
-		ink, border, fill = colorText, colorAccent, "#F8FAFF"
+		ink, border, fill = colors.Text, colors.Accent, colors.AccentSoft
 	}
 	button := ui.ButtonBase(c).Height(28).Padding(0, 10).Radius(6).Shrink(0).
 		Role(ui.RoleButton).Label(name).AccessSelected(selected).Cursor(ui.CursorPointer).
-		BorderWidth(1).BorderColor(ui.Hex(border)).Background(ui.Hex(fill))
+		BorderWidth(1).BorderColor(border).Background(fill)
 	if button.Hovered() && !selected {
-		button.Background(ui.Hex(colorHover))
+		button.Background(colors.Hover)
 	}
 	button.Children(func() {
 		ui.Text(c, name).FontSize(10.5).FontWeight(map[bool]int{true: 600, false: 500}[selected]).
-			TextColor(ui.Hex(ink))
+			TextColor(ink)
 	})
 	if button.Clicked() {
 		e.settings.category = index
@@ -281,27 +353,31 @@ func (e *editor) templateChip(c *ui.Context, index int, name string) {
 func (e *editor) templateCard(c *ui.Context, index int) {
 	t := labelTemplates[index]
 	selected := e.settings.template == index
-	ink, border, fill := colorText, colorFieldBorder, colorPanel
+	ink, border, fill := colors.Text, colors.CardBorder, colors.Card
 	if selected {
-		ink, border, fill = colorAccent, colorAccent, "#F8FAFF"
+		ink, border, fill = colors.Accent, colors.Accent, colors.AccentSoft
+	}
+	width := float32(1)
+	if selected {
+		width = 1.5
 	}
 	card := ui.ButtonBase(c).Grow(1).Height(templateCardHeight).Padding(10).Gap(8).Column().
-		AlignItems(ui.Stretch).Radius(12).Role(ui.RoleButton).Label(t.name).
+		AlignItems(ui.Stretch).Radius(12).Role(ui.RoleButton).Label(t.title()).
 		AccessSelected(selected).Cursor(ui.CursorPointer).
-		BorderWidth(1).BorderColor(ui.Hex(border)).Background(ui.Hex(fill))
+		BorderWidth(width).BorderColor(border).Background(fill)
 	if card.Hovered() && !selected {
-		card.BorderColor(ui.Hex("#C7D2E3")).Background(ui.Hex(colorPanel))
+		card.BorderColor(colors.BorderHover)
 	}
 	card.Children(func() {
 		ui.Box(c.Key("thumb")).Height(templateThumbHeight).Radius(8).Clip().
 			Draw(func(p *ui.Painter, r ui.Rect) { paintTemplateThumb(p, r, t) })
 		ui.Row(c.Key("meta")).Gap(7).AlignItems(ui.Center).Children(func() {
 			ui.Box(c.Key("dot")).Size(6, 6).Radius(3).Shrink(0).
-				Background(ui.Hex(categoryColor(t.category)))
-			ui.Text(c, t.name).FontSize(12.5).FontWeight(600).SingleLine().Grow(1).
-				TextColor(ui.Hex(ink))
+				Background(categoryColor(t.category))
+			ui.Text(c, t.title()).FontSize(12.5).FontWeight(600).SingleLine().Grow(1).
+				TextColor(ink)
 			ui.Textf(c, "%g × %g", t.width, t.height).FontSize(10).Shrink(0).
-				TextColor(ui.Hex(colorFaint))
+				TextColor(colors.Faint)
 		})
 	})
 	if card.Clicked() {
@@ -312,10 +388,10 @@ func (e *editor) templateCard(c *ui.Context, index int) {
 // templateEmpty 在没有匹配模板时提示修改筛选条件
 func (e *editor) templateEmpty(c *ui.Context) {
 	ui.Column(c).Margin(0, 14, 0, 0).Padding(30, 16).Radius(10).Gap(8).
-		BorderWidth(1).BorderStyle(ui.BorderDashed).BorderColor(ui.Hex("#DDE5EF")).
-		Background(ui.Hex(colorFieldBg)).AlignItems(ui.Center).Children(func() {
-		ui.Icon(c.Key("icon"), iconSearch).Size(18, 18).TextColor(ui.Hex(colorRulerText))
-		ui.Text(c, "没有匹配的模板").FontSize(11.5).FontWeight(600).TextColor(ui.Hex("#475467"))
+		BorderWidth(1).BorderStyle(ui.BorderDashed).BorderColor(colors.DashBorder).
+		Background(colors.FieldBg).AlignItems(ui.Center).Children(func() {
+		ui.Icon(c.Key("icon"), iconSearch).Size(18, 18).TextColor(colors.RulerText)
+		ui.Text(c, tr("template.empty")).FontSize(11.5).FontWeight(600).TextColor(colors.Body2)
 	})
 }
 
@@ -323,30 +399,30 @@ func (e *editor) templateEmpty(c *ui.Context) {
 func (e *editor) templateDetail(c *ui.Context) {
 	t := e.selectedTemplate()
 	ui.Column(c).Width(templatePreviewWidth).Shrink(0).FillHeight().Padding(12).Gap(0).
-		Radius(12).BorderWidth(1).BorderColor(ui.Hex(colorDivider)).
-		Background(ui.Hex("#FBFCFD")).Children(func() {
+		Radius(12).BorderWidth(1).BorderColor(colors.Divider).
+		Background(colors.PanelAlt).Children(func() {
 		ui.Box(c.Key("preview")).Height(templatePreviewHeight).Radius(10).Clip().
-			BorderWidth(1).BorderColor(ui.Hex(colorDivider)).
+			BorderWidth(1).BorderColor(colors.Divider).
 			Draw(func(p *ui.Painter, r ui.Rect) { paintTemplatePreview(p, r, t) })
 
 		ui.Column(c.Key("meta")).Margin(14, 0, 0, 0).Gap(4).Children(func() {
-			ui.Text(c, t.name).FontSize(16).FontWeight(650).TextColor(ui.Hex(colorHeading))
+			ui.Text(c, t.title()).FontSize(16).FontWeight(650).TextColor(colors.Heading)
 			ui.Textf(c, "%g × %g mm · %d DPI", t.width, t.height, t.dpi).FontSize(11).
-				TextColor(ui.Hex(colorMuted))
+				TextColor(colors.Muted)
 		})
 
 		ui.Box(c.Key("spacer")).Grow(1)
 		hairline(c.Key("rule"))
-		accentAction(c.Key("use"), "使用模板", iconChevron, true, func() { e.useTemplate(t) })
+		accentAction(c.Key("use"), tr("template.use"), iconChevron, true, func() { e.useTemplate(t) })
 	})
 }
 
 // paintDotField 绘制点阵底纹
 func paintDotField(p *ui.Painter, r ui.Rect) {
-	p.Fill(r, ui.Hex("#F2F5F9"), 0)
+	p.Fill(r, colors.Stage, 0)
 	for y := r.Y + 7; y < r.Y+r.H; y += 14 {
 		for x := r.X + 7; x < r.X+r.W; x += 14 {
-			p.Fill(ui.Rect{X: x - 1, Y: y - 1, W: 2, H: 2}, ui.Hex("#DCE3EB"), 1)
+			p.Fill(ui.Rect{X: x - 1, Y: y - 1, W: 2, H: 2}, colors.SketchDot, 1)
 		}
 	}
 }
@@ -366,7 +442,7 @@ func paintTemplateThumb(p *ui.Painter, r ui.Rect, t labelTemplate) {
 	paintDotField(p, r)
 	l := t.label()
 	paper := paperIn(r, l, 10)
-	p.Shadow(paper, 0, 0, 4, 10, -3, ui.RGBA(16, 24, 40, 0.16))
+	p.Shadow(paper, 0, 0, 4, 10, -3, colors.ShadowMid)
 	paintSketchLabel(p, paper, l)
 	p.Stroke(paper, ui.Hex("#D5DEE8"), 0, 1)
 }
@@ -379,7 +455,7 @@ func paintTemplatePreview(p *ui.Painter, r ui.Rect, t labelTemplate) {
 	paintDotField(p, r)
 	l := t.label()
 	paper := paperIn(r, l, 16)
-	p.Shadow(paper, 0, 0, 10, 24, -8, ui.RGBA(16, 24, 40, 0.22))
+	p.Shadow(paper, 0, 0, 10, 24, -8, colors.ShadowStrong)
 	paintSketchLabel(p, paper, l)
 	p.Stroke(paper, ui.Hex("#D5DEE8"), 0, 1)
 }
@@ -390,7 +466,8 @@ func paintSketchLabel(p *ui.Painter, paper ui.Rect, l *label) {
 		return
 	}
 	ink := ui.Hex("#111827")
-	p.Fill(paper, ui.Hex(colorPanel), 0)
+	// 纸张是印刷出来的白纸，深浅主题下都填白色
+	p.Fill(paper, colors.Paper, 0)
 	p.Clip(paper, 0, func() {
 		sx, sy := paper.W/float32(l.Width), paper.H/float32(l.Height)
 		for i := range l.Items {
@@ -432,10 +509,10 @@ func paintSketchLabel(p *ui.Painter, paper ui.Rect, l *label) {
 	})
 }
 
-// paintSketchBarcode 用黑白竖条表示条码
+// paintSketchBarcode 用黑白竖条表示条码，底和纸一样是白色
 func paintSketchBarcode(p *ui.Painter, r ui.Rect) {
 	ink := ui.Hex("#111827")
-	p.Fill(r, ui.Hex(colorPanel), 0)
+	p.Fill(r, colors.Paper, 0)
 	widths := [...]float32{1, 2, 1, 3, 1, 2, 2, 1, 3, 1, 2}
 	unit := max(0.7, r.W/64)
 	x := r.X + unit
@@ -451,7 +528,7 @@ func paintSketchBarcode(p *ui.Painter, r ui.Rect) {
 // paintSketchQR 用定位图案和点阵表示二维码
 func paintSketchQR(p *ui.Painter, r ui.Rect) {
 	ink := ui.Hex("#111827")
-	p.Fill(r, ui.Hex(colorPanel), 0)
+	p.Fill(r, colors.Paper, 0)
 	side := min(r.W, r.H)
 	if side < 12 {
 		p.Fill(ui.Rect{X: r.X, Y: r.Y, W: side, H: side}, ui.Hex("#475467"), 0)
@@ -466,7 +543,7 @@ func paintSketchQR(p *ui.Painter, r ui.Rect) {
 	y0 := r.Y + (r.H-size)/2
 	finder := func(cx, cy int) {
 		p.Fill(ui.Rect{X: x0 + float32(cx)*cell, Y: y0 + float32(cy)*cell, W: 7 * cell, H: 7 * cell}, ink, 0)
-		p.Fill(ui.Rect{X: x0 + float32(cx+1)*cell, Y: y0 + float32(cy+1)*cell, W: 5 * cell, H: 5 * cell}, ui.Hex(colorPanel), 0)
+		p.Fill(ui.Rect{X: x0 + float32(cx+1)*cell, Y: y0 + float32(cy+1)*cell, W: 5 * cell, H: 5 * cell}, colors.Panel, 0)
 		p.Fill(ui.Rect{X: x0 + float32(cx+2)*cell, Y: y0 + float32(cy+2)*cell, W: 3 * cell, H: 3 * cell}, ink, 0)
 	}
 	finder(0, 0)

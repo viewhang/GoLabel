@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"cmp"
-	"fmt"
+	"errors"
 	"image"
 	"image/png"
 	"runtime"
@@ -144,12 +144,12 @@ func (g *labelGraphics) symbolImage(kind itemKind, value string) (image.Image, e
 	}
 	output := macSend[objc.ID](filter, "outputImage")
 	if output == 0 {
-		return nil, fmt.Errorf("无法编码当前内容")
+		return nil, errors.New(tr("error.encode"))
 	}
 	extent := macSend[cgRect](output, "extent")
 	cgImage := g.createImage(g.ci, objc.RegisterName("createCGImage:fromRect:"), output, extent)
 	if cgImage == 0 {
-		return nil, fmt.Errorf("无法渲染条码")
+		return nil, errors.New(tr("error.renderBarcode"))
 	}
 	defer g.releaseImage(cgImage)
 
@@ -180,7 +180,7 @@ func (g *labelGraphics) pdf(l *label) ([]byte, error) {
 	bitmap := macSend[objc.ID](macClass("NSBitmapImageRep"), "imageRepWithData:", macData(rasterPNG.Bytes()))
 	imageRef := macSend[uintptr](bitmap, "CGImage")
 	if imageRef == 0 {
-		return nil, fmt.Errorf("无法创建 PDF 图像")
+		return nil, errors.New(tr("error.pdfImage"))
 	}
 	data := macSend[objc.ID](macClass("NSMutableData"), "data")
 	consumer := g.newConsumer(data)
@@ -189,7 +189,7 @@ func (g *labelGraphics) pdf(l *label) ([]byte, error) {
 	box := cgRect{W: size.W, H: size.H}
 	context := g.newPDF(consumer, &box, 0)
 	if context == 0 {
-		return nil, fmt.Errorf("无法创建 PDF 页面")
+		return nil, errors.New(tr("error.pdfPage"))
 	}
 	defer g.releaseContext(context)
 	g.beginPage(context, 0)
@@ -204,7 +204,7 @@ func (g *labelGraphics) pdf(l *label) ([]byte, error) {
 func writePDFFile(path string, data []byte) error {
 	defer macPool()()
 	if !macSend[bool](macData(data), "writeToFile:atomically:", macString(path), true) {
-		return fmt.Errorf("无法写入 PDF 文件")
+		return errors.New(tr("error.pdfWrite"))
 	}
 	return nil
 }
@@ -233,7 +233,7 @@ func (g *labelGraphics) print(l *label, title string, _ uintptr) (bool, error) {
 
 	operation := macSend[objc.ID](document, "printOperationForPrintInfo:scalingMode:autoRotate:", info, 0, false)
 	if operation == 0 {
-		return false, fmt.Errorf("无法创建系统打印任务")
+		return false, errors.New(tr("error.printJob"))
 	}
 	macSend[objc.ID](operation, "setJobTitle:", macString(title))
 	macSend[objc.ID](operation, "setShowsPrintPanel:", true)

@@ -9,7 +9,7 @@
   "macos": {
     "infoPlist": {
       "CFBundleDevelopmentRegion": "zh-Hans",
-      "CFBundleLocalizations": ["zh-Hans"],
+      "CFBundleLocalizations": ["zh-Hans", "en"],
       "CFBundleDocumentTypes": [
         {
           "CFBundleTypeName": "GoLabel 标签模板",

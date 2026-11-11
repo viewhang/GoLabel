@@ -150,3 +150,51 @@ func TestPreviewSettingsPanes(t *testing.T) {
 func TestPreviewCompact(t *testing.T) {
 	writeShot(t, "golabel-main-small", &editor{label: sampleLabel(), selected: -1, zoom: 1}, 980, 660)
 }
+
+// TestPreviewDark 渲染深色主题下的各个界面
+func TestPreviewDark(t *testing.T) {
+	restore := prefs
+	t.Cleanup(func() {
+		prefs = restore
+		resetSystemDarkCache()
+		applyTheme()
+	})
+	prefs.Theme = themeNameDark
+	applyTheme()
+
+	e := &editor{label: sampleLabel(), selected: 0, zoom: 1}
+	writeShot(t, "golabel-dark-main", e, 1280, 800)
+
+	e.selected = -1
+	e.textEdit = nil
+	writeShot(t, "golabel-dark-label", e, 1280, 800)
+
+	empty := &label{Width: 50, Height: 30, DPI: 203}
+	writeShot(t, "golabel-dark-empty", &editor{label: empty, selected: -1, zoom: 1}, 1280, 800)
+
+	settings := &editor{label: sampleLabel(), selected: -1, zoom: 1}
+	settings.settings = settingsState{open: true, page: settingsGeneral}
+	writeShot(t, "golabel-dark-settings", settings, 1280, 800)
+
+	templates := &editor{label: sampleLabel(), selected: -1, zoom: 1}
+	templates.settings = settingsState{open: true, page: settingsTemplates}
+	writeShot(t, "golabel-dark-templates", templates, 1280, 800)
+
+	creator := &editor{label: sampleLabel(), selected: -1, zoom: 1, form: newLabelForm{
+		open: true, width: 50, height: 30, dpi: 203, name: "未命名标签",
+	}}
+	writeShot(t, "golabel-dark-newlabel", creator, 1280, 800)
+
+	printer := &editor{label: sampleLabel(), selected: -1, zoom: 1}
+	printer.preview = printPreview{open: true}
+	writeShot(t, "golabel-dark-print", printer, 1280, 800)
+
+	// 设置里其余两页也按同一套深色变量渲染，便于核对
+	printed := &editor{label: sampleLabel(), selected: -1, zoom: 1}
+	printed.settings = settingsState{open: true, page: settingsPrint}
+	writeShot(t, "golabel-dark-settings-print", printed, 1280, 800)
+
+	about := &editor{label: sampleLabel(), selected: -1, zoom: 1}
+	about.settings = settingsState{open: true, page: settingsAbout}
+	writeShot(t, "golabel-dark-settings-about", about, 1280, 800)
+}

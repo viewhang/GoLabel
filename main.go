@@ -15,11 +15,24 @@ func main() {
 		log.Fatal(err)
 	}
 	mygo.App.SetName("GoLabel")
-	mygo.App.SetLanguages("zh-Hans")
+	// 应用自己的语言排在前面，系统语言都不匹配时用它
+	mygo.App.SetLanguages(string(languageZhHans), string(languageEnglish))
+	// 原生菜单和系统对话框跟随界面语言：选定语言时告诉框架，跟随系统时交回给系统
+	appLocale = func(name string) {
+		if language(name) == languageSystem {
+			mygo.App.SetLocale("")
+			return
+		}
+		mygo.App.SetLocale(name)
+	}
 	loadPreferences()
+	applyLanguage()
+	applyTheme()
+	// 原生菜单要等应用启动后再切换语言，那时系统接口才可用
+	mygo.App.WhenReady(func() { appLocale(prefs.Language) })
 	var documents *mygo.Documents[*label]
 	documents = mygo.NewDocuments(mygo.DocumentsOptions[*label]{
-		Types: []mygo.DocumentType{{Name: "GoLabel 标签模板", Extensions: []string{"golabel"}}},
+		Types: []mygo.DocumentType{{Name: tr("app.templateType"), Extensions: []string{"golabel"}}},
 		New: func() *label {
 			// 新建对话框选好规格后先暂存，文档控制器创建时取用
 			if l := nextLabel.Swap(nil); l != nil {
