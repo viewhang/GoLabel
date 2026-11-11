@@ -30,7 +30,8 @@ func main() {
 	}
 	loadPreferences()
 	applyLanguage()
-	applyTheme()
+	setNativeTheme = mygo.Theme.SetSource
+	applyThemePreference()
 	loadUserTemplates()
 	// 原生菜单要等应用启动后再切换语言，那时系统接口才可用
 	mygo.App.WhenReady(func() { appLocale(prefs.Language) })

@@ -241,8 +241,7 @@ func (e *editor) generalPage(c *ui.Context) {
 				ui.Row(c.Key("reset")).Margin(2, 0, 4, 0).Children(func() {
 					outlineAction(c.Key("button"), tr("settings.reset"), iconSliders, true, func() {
 						prefs = defaultPreferences()
-						resetSystemDarkCache()
-						applyTheme()
+						applyThemePreference()
 						applyLanguage()
 						resetFontMenu()
 						savePreferences()

@@ -1,6 +1,10 @@
 package main
 
-import "time"
+import (
+	"time"
+
+	"github.com/egoist/mygo"
+)
 
 // themeMode 是外观设置里的三种选择
 type themeMode int
@@ -48,6 +52,9 @@ func parseThemeMode(name string) themeMode {
 // systemDark 查询系统外观，由各平台的实现提供；测试中会替换掉
 var systemDark = detectSystemDark
 
+// setNativeTheme 将外观偏好同步到 MyGo 管理的原生界面
+var setNativeTheme = func(mygo.ThemeSource) {}
+
 // systemDarkCache 缓存系统外观，避免每帧都去查询系统设置
 var systemDarkCache struct {
 	at   time.Time
@@ -86,11 +93,17 @@ func resetSystemDarkCache() {
 	systemDarkCache.at = time.Time{}
 }
 
-// useThemeMode 保存外观模式并立即生效，「跟随系统」会重新查询系统外观
-func useThemeMode(m themeMode) {
-	prefs.Theme = themeModeName(m)
+// applyThemePreference 同步原生界面和编辑器的外观
+func applyThemePreference() {
+	setNativeTheme(mygo.ThemeSource(prefs.Theme))
 	resetSystemDarkCache()
 	applyTheme()
+}
+
+// useThemeMode 立即应用并保存外观偏好
+func useThemeMode(m themeMode) {
+	prefs.Theme = themeModeName(m)
+	applyThemePreference()
 	savePreferences()
 }
 
