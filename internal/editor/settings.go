@@ -39,13 +39,14 @@ const (
 	settingsAbout
 )
 
-// settingsState 保存设置对话框的打开状态和筛选条件
+// settingsState 保存设置对话框的打开状态、模板筛选和删除确认状态
 type settingsState struct {
-	open     bool
-	page     settingsPage
-	query    string
-	category int
-	template int
+	open           bool
+	page           settingsPage
+	query          string
+	category       int
+	template       int
+	deleteTemplate bool
 }
 
 // preferences 保存跨会话保留的用户偏好

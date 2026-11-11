@@ -2,10 +2,12 @@ package editor
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"image"
 	"image/png"
+	"io"
 	"log"
 	"math"
 	"os"
@@ -106,6 +108,7 @@ func readUserTemplate(path string, graphics *platform.Graphics) (labelTemplate, 
 	if err != nil {
 		return labelTemplate{}, err
 	}
+	t.path = path
 	if t.thumbnail == nil {
 		for i := range t.custom.Items {
 			element := &t.custom.Items[i]
@@ -127,14 +130,9 @@ func renderTemplateThumbnail(l *label) *image.RGBA {
 	}, width, height, 1)
 }
 
-// storeUserTemplate 将当前标签和即时生成的缩略图保存为同一个模板文件
+// storeUserTemplate 保存当前标签与缩略图并替换同名用户模板
 func storeUserTemplate(name string, l *label) (labelTemplate, error) {
 	name = strings.TrimSpace(name)
-	for _, t := range labelTemplates {
-		if t.custom != nil && strings.EqualFold(t.name, name) {
-			return labelTemplate{}, errors.New(i18n.Tr("template.duplicateName"))
-		}
-	}
 	content, err := json.Marshal(l)
 	if err != nil {
 		return labelTemplate{}, err
@@ -158,16 +156,16 @@ func storeUserTemplate(name string, l *label) (labelTemplate, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return labelTemplate{}, err
 	}
-	tmp, err := os.CreateTemp(dir, "template-*")
-	if err != nil {
-		return labelTemplate{}, err
+	for _, existing := range labelTemplates {
+		if existing.custom != nil && strings.EqualFold(existing.name, name) {
+			t.path = existing.path
+			break
+		}
 	}
-	defer os.Remove(tmp.Name())
-	writeErr := json.NewEncoder(tmp).Encode(file)
-	if err := errors.Join(writeErr, tmp.Close()); err != nil {
-		return labelTemplate{}, err
+	if t.path == "" {
+		t.path = filepath.Join(dir, "template-"+rand.Text()+".json")
 	}
-	if err := os.Rename(tmp.Name(), tmp.Name()+".json"); err != nil {
+	if err := writeDocumentFile(t.path, func(w io.Writer) error { return json.NewEncoder(w).Encode(file) }); err != nil {
 		return labelTemplate{}, err
 	}
 	return t, nil
@@ -201,7 +199,7 @@ func (e *editor) saveTemplateDialog(c *ui.Context) {
 	})
 }
 
-// saveTemplate 写回正在编辑的文字并保存带缩略图的模板副本
+// saveTemplate 写回正在编辑的文字并添加或更新模板库条目
 func (e *editor) saveTemplate() {
 	e.flushTextEdit()
 	t, err := storeUserTemplate(e.saveForm.name, e.label)
@@ -209,11 +207,29 @@ func (e *editor) saveTemplate() {
 		e.saveForm.message = err.Error()
 		return
 	}
-	labelTemplates = append(labelTemplates, t)
+	index := slices.IndexFunc(labelTemplates, func(existing labelTemplate) bool { return existing.path == t.path })
+	if index >= 0 {
+		labelTemplates[index] = t
+	} else {
+		labelTemplates = append(labelTemplates, t)
+		index = len(labelTemplates) - 1
+	}
 	e.saveForm.open = false
 	e.status = i18n.Tr("template.saved")
 	e.openSettings(settingsTemplates)
 	e.settings.query = ""
 	e.settings.category = slices.Index(templateCategories[:], "custom")
-	e.settings.template = len(labelTemplates) - 1
+	e.settings.template = index
+}
+
+// deleteUserTemplate 删除选中用户模板的文件和模板库条目
+func (e *editor) deleteUserTemplate() error {
+	index := e.settings.template
+	if err := os.Remove(labelTemplates[index].path); err != nil {
+		return err
+	}
+	labelTemplates = slices.Delete(labelTemplates, index, index+1)
+	e.settings.template = -1
+	e.status = i18n.Tr("template.deleted")
+	return nil
 }

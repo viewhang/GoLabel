@@ -22,7 +22,7 @@ const (
 	templateThumbnailSize = 640
 )
 
-// labelTemplate 保存模板名称、分类、规格和内置示例或用户标签
+// labelTemplate 保存模板名称、分类、规格、预览和用户模板文件路径
 type labelTemplate struct {
 	name      string
 	category  string
@@ -32,6 +32,7 @@ type labelTemplate struct {
 	zhItems   []item
 	enItems   []item
 	custom    *label
+	path      string
 	thumbnail *ui.Bitmap
 }
 
@@ -292,6 +293,15 @@ func (e *editor) templatePage(c *ui.Context) {
 			ui.Box(c.Key("detail")).Width(templatePreviewWidth).Shrink(0)
 		}
 	})
+	if e.settings.deleteTemplate {
+		t := labelTemplates[e.settings.template]
+		if ui.AlertDialog(c.Key("delete-template"), &e.settings.deleteTemplate,
+			i18n.Trf("template.deleteConfirm", t.title()), "", i18n.Tr("new.cancel"), i18n.Tr("template.delete")) == 1 {
+			if err := e.deleteUserTemplate(); err != nil {
+				e.status = err.Error()
+			}
+		}
+	}
 }
 
 // templateList 显示搜索和模板卡片，并报告筛选后是否有可用模板
@@ -305,7 +315,7 @@ func (e *editor) templateList(c *ui.Context) bool {
 		if len(indexes) > 0 && !slices.Contains(indexes, e.settings.template) {
 			e.settings.template = indexes[0]
 		}
-		ui.Scroll(c.Key("scroll")).Grow(1).MinHeight(0).Children(func() {
+		ui.Scroll(c.Key("scroll")).Grow(1).MinHeight(0).Margin(10, 0, 0, 0).Children(func() {
 			ui.Column(c.Key("grid")).Padding(0, 1, 4, 1).Gap(10).Children(func() {
 				if len(indexes) == 0 {
 					e.templateEmpty(c.Key("empty"))
@@ -366,7 +376,7 @@ func (e *editor) templateChip(c *ui.Context, index int, name string) {
 	}
 }
 
-// templateCard 显示一个模板缩略图和名称
+// templateCard 显示模板缩略图和名称并在悬停时提供用户模板删除操作
 func (e *editor) templateCard(c *ui.Context, index int) {
 	t := labelTemplates[index]
 	selected := e.settings.template == index
@@ -378,28 +388,45 @@ func (e *editor) templateCard(c *ui.Context, index int) {
 	if selected {
 		width = 1.5
 	}
-	card := ui.ButtonBase(c).Grow(1).Height(templateCardHeight).Padding(10).Gap(8).Column().
-		AlignItems(ui.Stretch).Radius(12).Role(ui.RoleButton).Label(t.title()).
-		AccessSelected(selected).Cursor(ui.CursorPointer).
-		BorderWidth(width).BorderColor(border).Background(fill)
-	if card.Hovered() && !selected {
-		card.BorderColor(colors.BorderHover)
-	}
-	card.Children(func() {
-		ui.Box(c.Key("thumb")).Height(templateThumbHeight).Radius(8).Clip().
-			Draw(func(p *ui.Painter, r ui.Rect) { paintTemplateThumb(p, r, t) })
-		ui.Row(c.Key("meta")).Gap(7).AlignItems(ui.Center).Children(func() {
-			ui.Box(c.Key("dot")).Size(6, 6).Radius(3).Shrink(0).
-				Background(categoryColor(t.category))
-			ui.Text(c, t.title()).FontSize(12.5).FontWeight(600).SingleLine().Grow(1).
-				TextColor(ink)
-			ui.Textf(c, "%g × %g", t.width, t.height).FontSize(10).Shrink(0).
-				TextColor(colors.Faint)
+	container := ui.Box(c).Grow(1).Height(templateCardHeight)
+	container.Children(func() {
+		card := ui.ButtonBase(c.Key("select")).Fill().Padding(10).Gap(8).Column().
+			AlignItems(ui.Stretch).Radius(12).Role(ui.RoleButton).Label(t.title()).
+			AccessSelected(selected).Cursor(ui.CursorPointer).
+			BorderWidth(width).BorderColor(border).Background(fill)
+		if container.Hovered() && !selected {
+			card.BorderColor(colors.BorderHover)
+		}
+		card.Children(func() {
+			ui.Box(c.Key("thumb")).Height(templateThumbHeight).Radius(8).Clip().
+				Draw(func(p *ui.Painter, r ui.Rect) { paintTemplateThumb(p, r, t) })
+			ui.Row(c.Key("meta")).Gap(7).AlignItems(ui.Center).Children(func() {
+				ui.Box(c.Key("dot")).Size(6, 6).Radius(3).Shrink(0).
+					Background(categoryColor(t.category))
+				ui.Text(c, t.title()).FontSize(12.5).FontWeight(600).SingleLine().Grow(1).
+					TextColor(ink)
+				ui.Textf(c, "%g × %g", t.width, t.height).FontSize(10).Shrink(0).
+					TextColor(colors.Faint)
+			})
 		})
+		if card.Clicked() {
+			e.settings.template = index
+		}
+		if t.custom != nil && container.Hovered() {
+			button := ui.ButtonBase(c.Key("delete")).Absolute().Right(6).Top(6).Size(24, 24).Radius(6).
+				Background(colors.Card).BorderWidth(1).BorderColor(colors.CardBorder).
+				Role(ui.RoleButton).Label(i18n.Tr("template.delete")).Tooltip(i18n.Tr("template.delete")).
+				Cursor(ui.CursorPointer).AlignItems(ui.Center).Justify(ui.Center)
+			if button.Hovered() {
+				button.Background(colors.Danger.Alpha(0.1))
+			}
+			button.Children(func() { ui.Icon(c, iconTrash).Size(13, 13).TextColor(colors.Danger) })
+			if button.Clicked() {
+				e.settings.template = index
+				e.settings.deleteTemplate = true
+			}
+		}
 	})
-	if card.Clicked() {
-		e.settings.template = index
-	}
 }
 
 // templateEmpty 在没有匹配模板时提示修改筛选条件
