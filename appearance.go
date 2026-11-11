@@ -24,6 +24,8 @@ type palette struct {
 	Divider, Hairline, FieldBorder, CardBorder ui.Color
 	BorderHover, BorderStrong, DashBorder      ui.Color
 	Paper, PaperBorder                         ui.Color
+	// TabBar 和 TabDirty 分别是标签栏底色和未保存圆点颜色
+	TabBar, TabDirty ui.Color
 
 	// 文字；Section 用于「外观」「添加元素」这类分组小标题
 	Heading, Text, Body, Body2, Muted, Faint, Disabled, Section ui.Color
@@ -74,6 +76,8 @@ var lightPalette = palette{
 	DashBorder:   ui.Hex("#DDE5EF"),
 	Paper:        ui.Hex("#FFFFFF"),
 	PaperBorder:  ui.Hex("#DFE5EC"),
+	TabBar:       ui.Hex("#F8FAFC"),
+	TabDirty:     ui.Hex("#F59E0B"),
 
 	Heading:  ui.Hex("#101828"),
 	Text:     ui.Hex("#1F2A44"),
@@ -151,6 +155,8 @@ var darkPalette = palette{
 	// 纸张始终是白色的标签，深色下也不改，只让描边收进背景
 	Paper:       ui.Hex("#FFFFFF"),
 	PaperBorder: ui.Hex("#3A4454"),
+	TabBar:      ui.Hex("#11161E"),
+	TabDirty:    ui.Hex("#F5B86E"),
 
 	Heading:  ui.Hex("#F2F5FA"),
 	Text:     ui.Hex("#E8EDF5"),

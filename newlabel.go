@@ -78,8 +78,7 @@ func (f *newLabelForm) choosePreset(i int) {
 func (e *editor) createLabel() {
 	f := &e.form
 	f.open = false
-	l := &label{Width: roundMM(f.width), Height: roundMM(f.height), DPI: f.dpi}
-	e.title = strings.TrimSpace(f.name)
+	l := &label{Width: roundMM(f.width), Height: roundMM(f.height), DPI: f.dpi, title: strings.TrimSpace(f.name)}
 	if e.documents == nil {
 		e.label, e.selected, e.drag = l, -1, nil
 		e.textEdit, e.cells, e.inline = nil, nil, false

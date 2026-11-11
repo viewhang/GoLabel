@@ -47,6 +47,8 @@ type label struct {
 	Height float64 `json:"heightMm"`
 	DPI    int     `json:"dpi"`
 	Items  []item  `json:"items"`
+	// title 是未保存标签在编辑器中显示的名称
+	title string
 }
 
 // item 保存元素内容和毫米坐标以及内存中的绘制资源

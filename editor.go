@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 
@@ -34,10 +35,11 @@ const (
 	handleSize = 8
 )
 
-// editor 保存一个标签窗口的选择、平移、缩放和交互状态
+// editor 保存一个标签页的选择、平移、缩放和交互状态
 type editor struct {
 	document  *mygo.Document[*label]
 	documents *mygo.Documents[*label]
+	tabs      *documentTabs
 	graphics  *labelGraphics
 	window    *mygo.Window
 	label     *label
@@ -50,10 +52,11 @@ type editor struct {
 	inline    bool
 	cells     *tableSelection
 	status    string
-	title     string
+	revealTab bool
 	form      newLabelForm
 	preview   printPreview
 	settings  settingsState
+	saveForm  templateSaveForm
 }
 
 // gesture 记录元素拖动或单元格拖选的起点状态
@@ -81,13 +84,13 @@ func (e *editor) content() *label {
 	return e.label
 }
 
-// documentName 返回窗口顶部显示的标签名
+// documentName 返回当前文件名或新建标签的名称
 func (e *editor) documentName() string {
 	if e.document != nil && e.document.Path() != "" {
 		return e.document.Name()
 	}
-	if e.title != "" {
-		return e.title
+	if name := e.content().title; name != "" {
+		return name
 	}
 	if e.document == nil {
 		return tr("header.untitled")
@@ -116,8 +119,7 @@ func (e *editor) view(c *ui.Context) {
 	if l != e.label {
 		e.label, e.selected, e.drag = l, -1, nil
 		e.textEdit, e.cells, e.inline = nil, nil, false
-		e.title = ""
-		e.form.open, e.preview.open, e.settings.open = false, false, false
+		e.form.open, e.preview.open, e.settings.open, e.saveForm.open = false, false, false, false
 		for i := range l.Items {
 			element := &l.Items[i]
 			if e.graphics != nil && (element.Kind == kindQR || element.Kind == kindBarcode) {
@@ -130,6 +132,9 @@ func (e *editor) view(c *ui.Context) {
 	c.OnShortcut(ui.Cmd, ui.KeyComma, func() { e.openSettings(settingsGeneral) })
 	ui.Column(c).Fill().Background(colors.Canvas).Children(func() {
 		e.header(c.Key("header"))
+		if e.tabs != nil {
+			e.tabBar(c.Key("tabs"))
+		}
 		ui.Row(c.Key("workspace")).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
 			e.sidebar(c.Key("sidebar"))
 			e.canvasView(c.Key("canvas"))
@@ -139,9 +144,10 @@ func (e *editor) view(c *ui.Context) {
 	e.newLabelDialog(c)
 	e.printPreviewDialog(c)
 	e.settingsDialog(c)
+	e.saveTemplateDialog(c.Key("save-template-dialog"))
 }
 
-// header 显示品牌、文件操作、标签名以及导出和打印按钮
+// header 显示品牌、文件操作、导出和打印按钮
 func (e *editor) header(c *ui.Context) {
 	l := e.label
 	ui.Row(c).Height(62).Shrink(0).Padding(0, 20).Gap(16).AlignItems(ui.Center).
@@ -164,8 +170,14 @@ func (e *editor) header(c *ui.Context) {
 						return err
 					})
 				})
+				fileMenuButton(c.Key("recent"), tr("header.recent"), e.recentFilesMenu)
 				ghostAction(c.Key("save"), tr("header.save"), iconSave, func() {
 					e.perform(e.document.Save)
+				})
+				fileMenuButton(c.Key("save-options"), tr("header.saveOptions"), func(m *ui.Menu) {
+					if m.Item(tr("template.saveAs")).Chosen() {
+						e.openSaveTemplate()
+					}
 				})
 			})
 
@@ -181,30 +193,38 @@ func (e *editor) header(c *ui.Context) {
 					e.openPrintPreview()
 				})
 			})
-
-			e.documentTitle(c.Key("title"))
 		})
 }
 
-// documentTitle 在顶栏中央显示标签名和保存状态
-func (e *editor) documentTitle(c *ui.Context) {
-	ui.Row(c).Absolute().LeftPercent(50).Top(0).Height(62).TranslatePercent(-50, 0).
-		Gap(8).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, e.documentName()).FontSize(13).FontWeight(600).MaxWidth(240).
-			SingleLine().TextColor(colors.Heading)
-		text, ink, fill := tr("header.saved"), colors.Success, colors.SuccessSoft
-		switch {
-		case e.status != "":
-			text, ink, fill = e.status, colors.Muted, colors.Hover
-		case e.documentEdited():
-			text, ink, fill = tr("header.unsaved"), colors.Warning, colors.WarningSoft
-		}
-		ui.Row(c.Key("state")).Height(20).Padding(0, 7).Gap(5).Radius(10).Shrink(0).
-			Background(fill).AlignItems(ui.Center).Children(func() {
-			ui.Box(c.Key("dot")).Size(5, 5).Radius(3).Shrink(0).Background(ink)
-			ui.Text(c, text).FontSize(10.5).FontWeight(500).SingleLine().MaxWidth(180).TextColor(ink)
-		})
+// fileMenuButton 显示文件操作旁的下拉菜单按钮
+func fileMenuButton(c *ui.Context, label string, build func(*ui.Menu)) {
+	button := ui.ButtonBase(c).Size(22, 32).Shrink(0).Radius(6).
+		AlignItems(ui.Center).Justify(ui.Center).Label(label).Tooltip(label).Cursor(ui.CursorPointer)
+	if button.Hovered() {
+		button.Background(colors.Hover)
+	}
+	button.Children(func() {
+		ui.Icon(c, iconChevron).Size(13, 13).Rotate(90).TextColor(colors.Body)
 	})
+	button.PopoverMenuButton(build)
+}
+
+// recentFilesMenu 列出最近打开或保存的标签并按选中路径打开
+func (e *editor) recentFilesMenu(m *ui.Menu) {
+	paths := mygo.App.RecentDocuments()
+	if len(paths) == 0 {
+		m.Item(tr("header.noRecent")).Disabled(true)
+		return
+	}
+	m.MaxWidth(420)
+	for _, path := range paths {
+		if m.Item(filepath.Base(path)).ID(path).Subtitle(filepath.Dir(path)).Tooltip(path).Chosen() {
+			e.perform(func() error {
+				_, err := e.documents.Open(path)
+				return err
+			})
+		}
+	}
 }
 
 // ghostAction 显示顶栏中无边框的图标按钮

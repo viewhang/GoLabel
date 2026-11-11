@@ -19,8 +19,7 @@ const (
 	templateThumbHeight = 68
 )
 
-// labelTemplate 是模板库中的内置标签样式；name 和 category 是文案 key，
-// 随界面语言显示，示例内容也按语言各存一份
+// labelTemplate 保存模板名称、分类、规格和内置示例或用户标签
 type labelTemplate struct {
 	name     string
 	category string
@@ -29,10 +28,16 @@ type labelTemplate struct {
 	dpi      int
 	zhItems  []item
 	enItems  []item
+	custom   *label
 }
 
-// label 把模板转换成可以放进编辑器的标签，示例内容跟随当前界面语言
+// label 生成可独立编辑的标签，内置示例内容跟随当前界面语言
 func (t labelTemplate) label() *label {
+	if t.custom != nil {
+		copy := *t.custom
+		copy.Items = cloneItems(copy.Items)
+		return &copy
+	}
 	items := t.zhItems
 	if currentLang == languageEnglish {
 		items = t.enItems
@@ -49,6 +54,9 @@ func cloneItems(items []item) []item {
 	var copy []item
 	if err := json.Unmarshal(data, &copy); err != nil {
 		return slices.Clone(items)
+	}
+	for i := range copy {
+		copy[i].bitmap = items[i].bitmap
 	}
 	return copy
 }
@@ -77,20 +85,26 @@ func tplQR(x, y, side float64, value string) item {
 }
 
 // templateCategories 是模板库顶部的分类筛选，第一项为全部
-var templateCategories = [...]string{"all", "product", "food", "retail", "shipping", "asset"}
+var templateCategories = [...]string{"all", "product", "food", "retail", "shipping", "asset", "custom"}
 
 // categoryName 返回模板分类在当前语言下的名称
 func categoryName(category string) string {
 	return tr("template.category." + category)
 }
 
-// title 返回模板名称在当前语言下的写法
+// title 返回用户输入的名称或内置模板的本地化名称
 func (t labelTemplate) title() string {
+	if t.custom != nil {
+		return t.name
+	}
 	return tr(t.name)
 }
 
-// searchText 返回模板名称和分类在两种语言下的文字，便于用任一语言搜索
+// searchText 返回可供搜索的用户模板名称或内置模板的中英文文案
 func (t labelTemplate) searchText() string {
+	if t.custom != nil {
+		return strings.ToLower(t.name)
+	}
 	parts := make([]string, 0, 4)
 	for _, key := range []string{t.name, "template.category." + t.category} {
 		if message, ok := messages[key]; ok {
@@ -100,7 +114,7 @@ func (t labelTemplate) searchText() string {
 	return strings.ToLower(strings.Join(parts, " "))
 }
 
-// labelTemplates 按设计稿顺序列出内置模板，中英文各有一份示例内容
+// labelTemplates 保存内置模板和从本机读取或新保存的用户模板
 var labelTemplates = []labelTemplate{
 	{
 		name: "template.product", category: "product", width: 50, height: 30, dpi: 203,
@@ -246,19 +260,11 @@ func (e *editor) visibleTemplates() []int {
 	return indexes
 }
 
-// selectedTemplate 返回预览面板要显示的模板
-func (e *editor) selectedTemplate() labelTemplate {
-	if e.settings.template >= 0 && e.settings.template < len(labelTemplates) {
-		return labelTemplates[e.settings.template]
-	}
-	return labelTemplates[0]
-}
-
 // useTemplate 用选中模板新建一个标签
 func (e *editor) useTemplate(t labelTemplate) {
 	e.settings.open = false
 	l := t.label()
-	e.title = t.title()
+	l.title = t.title()
 	if e.documents == nil {
 		e.label, e.selected, e.drag = l, -1, nil
 		e.textEdit, e.cells, e.inline = nil, nil, false
@@ -277,20 +283,27 @@ func (e *editor) useTemplate(t labelTemplate) {
 // templatePage 显示模板搜索、分类、卡片网格和选中模板预览
 func (e *editor) templatePage(c *ui.Context) {
 	ui.Row(c).Gap(20).AlignItems(ui.Stretch).Children(func() {
-		e.templateList(c.Key("list"))
-		e.templateDetail(c.Key("detail"))
+		if e.templateList(c.Key("list")) {
+			e.templateDetail(c.Key("detail"), labelTemplates[e.settings.template])
+		} else {
+			ui.Box(c.Key("detail")).Width(templatePreviewWidth).Shrink(0)
+		}
 	})
 }
 
-// templateList 显示搜索框、分类筛选和模板卡片
-func (e *editor) templateList(c *ui.Context) {
+// templateList 显示搜索和模板卡片，并报告筛选后是否有可用模板
+func (e *editor) templateList(c *ui.Context) bool {
+	var indexes []int
 	ui.Column(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
 		ui.Text(c.Key("title"), tr("template.library")).FontSize(20).FontWeight(650).TextColor(colors.Heading)
 		e.templateSearch(c.Key("search"))
 		e.templateChips(c.Key("chips"))
+		indexes = e.visibleTemplates()
+		if len(indexes) > 0 && !slices.Contains(indexes, e.settings.template) {
+			e.settings.template = indexes[0]
+		}
 		ui.Scroll(c.Key("scroll")).Grow(1).MinHeight(0).Children(func() {
 			ui.Column(c.Key("grid")).Padding(0, 1, 4, 1).Gap(10).Children(func() {
-				indexes := e.visibleTemplates()
 				if len(indexes) == 0 {
 					e.templateEmpty(c.Key("empty"))
 					return
@@ -305,6 +318,7 @@ func (e *editor) templateList(c *ui.Context) {
 			})
 		})
 	})
+	return len(indexes) > 0
 }
 
 // templateSearch 显示模板搜索输入框
@@ -320,7 +334,7 @@ func (e *editor) templateSearch(c *ui.Context) {
 
 // templateChips 显示分类筛选按钮
 func (e *editor) templateChips(c *ui.Context) {
-	ui.Row(c).Margin(10, 0, 0, 0).Gap(6).Children(func() {
+	ui.Row(c).Margin(10, 0, 0, 0).Gap(6).Wrap().Children(func() {
 		for i, category := range templateCategories {
 			e.templateChip(c.Key(category), i, categoryName(category))
 		}
@@ -396,8 +410,7 @@ func (e *editor) templateEmpty(c *ui.Context) {
 }
 
 // templateDetail 显示选中模板的预览、规格和使用按钮
-func (e *editor) templateDetail(c *ui.Context) {
-	t := e.selectedTemplate()
+func (e *editor) templateDetail(c *ui.Context, t labelTemplate) {
 	ui.Column(c).Width(templatePreviewWidth).Shrink(0).FillHeight().Padding(12).Gap(0).
 		Radius(12).BorderWidth(1).BorderColor(colors.Divider).
 		Background(colors.PanelAlt).Children(func() {
@@ -415,6 +428,14 @@ func (e *editor) templateDetail(c *ui.Context) {
 		hairline(c.Key("rule"))
 		accentAction(c.Key("use"), tr("template.use"), iconChevron, true, func() { e.useTemplate(t) })
 	})
+}
+
+// previewLabel 返回用于绘制预览的模板内容
+func (t labelTemplate) previewLabel() *label {
+	if t.custom != nil {
+		return t.custom
+	}
+	return t.label()
 }
 
 // paintDotField 绘制点阵底纹
@@ -440,7 +461,7 @@ func paintTemplateThumb(p *ui.Painter, r ui.Rect, t labelTemplate) {
 		return
 	}
 	paintDotField(p, r)
-	l := t.label()
+	l := t.previewLabel()
 	paper := paperIn(r, l, 10)
 	p.Shadow(paper, 0, 0, 4, 10, -3, colors.ShadowMid)
 	paintSketchLabel(p, paper, l)
@@ -453,7 +474,7 @@ func paintTemplatePreview(p *ui.Painter, r ui.Rect, t labelTemplate) {
 		return
 	}
 	paintDotField(p, r)
-	l := t.label()
+	l := t.previewLabel()
 	paper := paperIn(r, l, 16)
 	p.Shadow(paper, 0, 0, 10, 24, -8, colors.ShadowStrong)
 	paintSketchLabel(p, paper, l)
@@ -503,7 +524,7 @@ func paintSketchLabel(p *ui.Painter, paper ui.Rect, l *label) {
 			case kindTable:
 				paintSketchTable(p, r)
 			case kindImage:
-				p.Fill(r, ui.Hex("#CBD5E1"), 0)
+				p.Image(a.bitmap, r, ui.Contain)
 			}
 		}
 	})
