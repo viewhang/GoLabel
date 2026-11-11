@@ -20,22 +20,21 @@ func main() {
 	}
 	// 应用自己的语言排在前面，系统语言都不匹配时用它
 	mygo.App.SetLanguages(string(languageZhHans), string(languageEnglish))
-	// 原生菜单和系统对话框跟随界面语言：选定语言时告诉框架，跟随系统时交回给系统
-	appLocale = func(name string) {
-		if language(name) == languageSystem {
-			mygo.App.SetLocale("")
-			return
-		}
-		mygo.App.SetLocale(name)
-	}
+	mygo.App.OnLocaleChanged(func(string) { resetFontMenu() })
 	loadPreferences()
 	applyLanguage()
 	setNativeTheme = mygo.Theme.SetSource
 	applyThemePreference()
 	loadUserTemplates()
-	// 原生菜单要等应用启动后再切换语言，那时系统接口才可用
-	mygo.App.WhenReady(func() { appLocale(prefs.Language) })
 	tabs := &documentTabs{}
+	mygo.App.OnSecondInstance(func(args []string, _ string) {
+		// 文件参数由 MyGo 文档控制器打开，普通启动恢复当前标签窗口
+		if len(args) == 0 && tabs.active != nil {
+			window := tabs.active.window
+			window.Restore()
+			window.Focus()
+		}
+	})
 	var documents *mygo.Documents[*label]
 	documents = mygo.NewDocuments(mygo.DocumentsOptions[*label]{
 		Types: []mygo.DocumentType{{Name: tr("app.templateType"), Extensions: []string{"golabel"}}},

@@ -12,61 +12,31 @@ import (
 // resetLanguage 在测试结束后恢复语言和偏好，避免影响其他用例
 func resetLanguage(t *testing.T) {
 	t.Helper()
-	restorePrefs, restoreLang := prefs, currentLang
+	restorePrefs, restoreLang := prefs, appLocale()
 	t.Cleanup(func() {
-		prefs, currentLang = restorePrefs, restoreLang
-		resetFontMenu()
+		prefs = restorePrefs
+		setAppLocale(restoreLang)
 		applyTheme()
 	})
 }
 
-// TestMatchLanguage 验证系统语言标签折算成界面语言的结果
-func TestMatchLanguage(t *testing.T) {
-	cases := []struct {
-		tag  string
-		want language
-	}{
-		{"zh-Hans-CN", languageZhHans},
-		{"zh-Hant-TW", languageZhHans},
-		{"zh_CN.UTF-8", languageZhHans},
-		{"en-US", languageEnglish},
-		{"en_GB.UTF-8", languageEnglish},
-		{"de-DE", languageEnglish},
-		{"", languageZhHans},
-	}
-	for _, c := range cases {
-		if got := matchLanguage(c.tag); got != c.want {
-			t.Fatalf("%q 折算成了 %q，应为 %q", c.tag, got, c.want)
-		}
-	}
-}
-
-// TestApplyLanguage 验证偏好里的三种语言取值都能生效，无效值跟随系统
+// TestApplyLanguage 验证跟随系统和无效偏好都交给 MyGo 解析
 func TestApplyLanguage(t *testing.T) {
 	resetLanguage(t)
-	restoreSystem := systemLanguage
-	t.Cleanup(func() { systemLanguage = restoreSystem })
-
-	systemLanguage = func() string { return "en-GB" }
-	for _, c := range []struct {
-		saved string
-		want  language
-	}{
-		{string(languageZhHans), languageZhHans},
-		{string(languageEnglish), languageEnglish},
-		{string(languageSystem), languageEnglish},
-		{"klingon", languageEnglish},
-	} {
-		prefs.Language = c.saved
-		if got := applyLanguage(); got != c.want {
-			t.Fatalf("偏好 %q 应用成了 %q，应为 %q", c.saved, got, c.want)
+	setLocale := setAppLocale
+	t.Cleanup(func() { setAppLocale = setLocale })
+	setAppLocale = func(tag string) {
+		if tag != "" {
+			t.Fatalf("跟随系统时应清除语言覆盖，实际收到 %q", tag)
 		}
+		setLocale(string(languageEnglish))
 	}
-
-	systemLanguage = func() string { return "zh-Hans" }
-	prefs.Language = string(languageSystem)
-	if got := applyLanguage(); got != languageZhHans {
-		t.Fatalf("跟随系统时没有取到中文：%q", got)
+	for _, saved := range []string{string(languageSystem), "klingon"} {
+		prefs.Language = saved
+		applyLanguage()
+		if got := tr("header.save"); got != "Save" {
+			t.Fatalf("偏好 %q 没有使用 MyGo 解析的英文：%q", saved, got)
+		}
 	}
 }
 
@@ -115,8 +85,8 @@ func TestLanguageCardInSettings(t *testing.T) {
 	if prefs.Language != string(languageEnglish) {
 		t.Fatalf("语言没有保存为英文：%q", prefs.Language)
 	}
-	if currentLang != languageEnglish {
-		t.Fatalf("切换后界面语言不是英文：%q", currentLang)
+	if got := appLocale(); got != string(languageEnglish) {
+		t.Fatalf("切换后界面语言不是英文：%q", got)
 	}
 	for _, want := range []string{"General", "Appearance", "Language", "Light", "Dark"} {
 		if !tt.HasText(want) {
@@ -167,9 +137,9 @@ func TestTemplateContentFollowsLanguage(t *testing.T) {
 			t.Fatalf("第 %d 个模板缺少英文示例内容", i+1)
 		}
 	}
-	currentLang = languageZhHans
+	setAppLocale(string(languageZhHans))
 	chinese := labelTemplates[0].label()
-	currentLang = languageEnglish
+	setAppLocale(string(languageEnglish))
 	english := labelTemplates[0].label()
 	if chinese.Items[1].Value == english.Items[1].Value {
 		t.Fatalf("中英文模板内容相同：%q", chinese.Items[1].Value)

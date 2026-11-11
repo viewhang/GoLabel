@@ -39,7 +39,7 @@ func (t labelTemplate) label() *label {
 		return &copy
 	}
 	items := t.zhItems
-	if currentLang == languageEnglish {
+	if appLocale() == string(languageEnglish) {
 		items = t.enItems
 	}
 	return &label{Width: t.width, Height: t.height, DPI: t.dpi, Items: cloneItems(items)}

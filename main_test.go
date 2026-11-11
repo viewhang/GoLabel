@@ -19,8 +19,16 @@ func TestMain(m *testing.M) {
 	}
 	// 无窗口环境不查询系统外观，默认按浅色处理
 	systemDark = func() bool { return false }
-	// 无窗口环境不读系统语言，统一按简体中文处理
-	systemLanguage = func() string { return string(languageZhHans) }
+	// 无窗口环境以简体中文模拟系统语言
+	locale := string(languageZhHans)
+	appLocale = func() string { return locale }
+	setAppLocale = func(tag string) {
+		if tag == "" {
+			tag = string(languageZhHans)
+		}
+		locale = tag
+		resetFontMenu()
+	}
 	// 主题缩略图和配色在测试里都要可预期
 	applyTheme()
 	dir, err := os.MkdirTemp("", "golabel-test")

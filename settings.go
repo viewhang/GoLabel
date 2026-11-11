@@ -243,10 +243,7 @@ func (e *editor) generalPage(c *ui.Context) {
 						prefs = defaultPreferences()
 						applyThemePreference()
 						applyLanguage()
-						resetFontMenu()
 						savePreferences()
-						// 语言回到跟随系统后，原生菜单也要交回给系统
-						appLocale(prefs.Language)
 						e.status = tr("settings.resetDone")
 					})
 				})

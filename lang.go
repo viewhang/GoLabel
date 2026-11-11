@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/egoist/mygo"
 )
 
 // language 既是界面显示的语言，也是设置里的三个选项
@@ -20,21 +21,18 @@ const (
 // languageOptions 是设置里的三个选项，顺序即显示顺序
 var languageOptions = [...]language{languageZhHans, languageEnglish, languageSystem}
 
-// currentLang 是当前界面语言，界面文字都通过 tr 读取它
-var currentLang = languageZhHans
+// appLocale 读取 MyGo 已解析的界面语言，可从后台读取
+var appLocale = mygo.App.Locale
 
-// systemLanguage 查询系统首选语言，由各平台的实现提供；测试中会替换掉
-var systemLanguage = detectSystemLanguage
-
-// appLocale 把界面语言告诉原生界面，让菜单和系统对话框跟上；main 启动时接入
-var appLocale = func(string) {}
+// setAppLocale 设置应用界面和原生控件共用的语言
+var setAppLocale = mygo.App.SetLocale
 
 // text 是一条文字在两种语言下的写法
 type text struct{ zh, en string }
 
 // get 返回这条文字在当前语言下的写法
 func (t text) get() string {
-	if currentLang == languageEnglish {
+	if appLocale() == string(languageEnglish) {
 		return t.en
 	}
 	return t.zh
@@ -67,31 +65,13 @@ func languageTitle(l language) string {
 	}
 }
 
-// applyLanguage 按偏好确定界面语言，「跟随系统」时读取系统首选语言
-func applyLanguage() language {
+// applyLanguage 将语言偏好交给 MyGo，空值表示跟随系统
+func applyLanguage() {
 	switch language(prefs.Language) {
-	case languageZhHans:
-		currentLang = languageZhHans
-	case languageEnglish:
-		currentLang = languageEnglish
+	case languageZhHans, languageEnglish:
+		setAppLocale(prefs.Language)
 	default:
-		currentLang = matchLanguage(systemLanguage())
-	}
-	return currentLang
-}
-
-// matchLanguage 把系统语言标签折算成界面支持的语言：中文一律用简体，其他语言用英文
-func matchLanguage(tag string) language {
-	tag = strings.ToLower(strings.TrimSpace(tag))
-	switch {
-	case tag == "":
-		// 读不到系统语言时用应用自己的语言
-		return languageZhHans
-	case strings.HasPrefix(tag, "zh"):
-		// 界面只提供一套中文，繁体系统也用简体
-		return languageZhHans
-	default:
-		return languageEnglish
+		setAppLocale("")
 	}
 }
 
@@ -99,8 +79,5 @@ func matchLanguage(tag string) language {
 func useLanguage(l language) {
 	prefs.Language = string(l)
 	applyLanguage()
-	// 字体菜单里的「系统默认」等名称随语言变化，切换后重新枚举
-	resetFontMenu()
 	savePreferences()
-	appLocale(prefs.Language)
 }

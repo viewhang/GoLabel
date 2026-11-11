@@ -3,15 +3,15 @@ package main
 import "github.com/egoist/mygo/ui"
 
 // openFontLicense 是目录中开源字体采用的许可证
-const openFontLicense = "SIL OFL 1.1"
+var openFontLicense = text{"SIL OFL 1.1", "SIL OFL 1.1"}
 
 // fontCatalog 保存适合标签的字体、用途和官方发布入口，名称和用途随界面语言显示
 var fontCatalog = [...]struct {
-	name, use    text
-	license, url string
+	name, use, license text
+	url                string
 }{
 	{text{"思源黑体", "Source Han Sans"}, text{"简繁中文 · 商品名、说明小字", "Simplified and traditional Chinese · product names, fine print"}, openFontLicense, "https://github.com/adobe-fonts/source-han-sans/releases/latest"},
-	{text{"阿里巴巴普惠体", "Alibaba PuHuiTi"}, text{"简体中文 · 商品名、价格和说明", "Simplified Chinese · product names, prices and descriptions"}, openFontLicense, "https://www.alibabafonts.com/#/font"},
+	{text{"阿里巴巴普惠体", "Alibaba PuHuiTi"}, text{"简体中文 · 商品名、价格和说明", "Simplified Chinese · product names, prices and descriptions"}, text{"免费商用", "Free for commercial use"}, "https://www.alibabafonts.com/#/font"},
 	{text{"Inter", "Inter"}, text{"拉丁字母 · 小字号英文、价格和规格", "Latin · small English text, prices and specs"}, openFontLicense, "https://rsms.me/inter/download/"},
 	{text{"JetBrains Mono", "JetBrains Mono"}, text{"拉丁字母 · 等宽批号、SKU，容易区分 0 和 O", "Latin · monospaced batch numbers and SKUs; 0 and O stay distinct"}, openFontLicense, "https://github.com/JetBrains/JetBrainsMono/releases/latest"},
 	{text{"昭源黑体", "Chiron Hei HK"}, text{"繁体中文 · 香港字形、商品说明", "Traditional Chinese · Hong Kong glyphs, product descriptions"}, openFontLicense, "https://github.com/chiron-fonts/chiron-hei-hk/releases/latest"},
@@ -59,7 +59,7 @@ func fontCatalogDialog(c *ui.Context, open *bool) {
 							ui.Text(row, name).FontSize(13).Bold()
 							ui.Text(row, font.use.get()).FontSize(11).TextColor(t.TextMuted)
 						})
-						ui.Text(row, font.license).Width(72).FontSize(11).TextColor(t.TextMuted)
+						ui.Text(row, font.license.get()).Width(72).FontSize(11).TextColor(t.TextMuted)
 						ui.Link(row.Key("download"), tr("font.official"), font.url).FontSize(12).
 							Label(trf("font.downloadName", name))
 					})

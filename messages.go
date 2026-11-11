@@ -22,10 +22,11 @@ var messages = map[string]text{
 	"header.untitled":    {"未命名标签", "Untitled label"},
 
 	// 文档标签页
-	"tabs.label": {"标签页", "Document tabs"},
-	"tabs.new":   {"新建标签页", "New tab"},
-	"tabs.close": {"关闭 %s", "Close %s"},
-	"tabs.draft": {"草稿", "Draft"},
+	"tabs.label":   {"标签页", "Document tabs"},
+	"tabs.new":     {"新建标签页", "New tab"},
+	"tabs.close":   {"关闭 %s", "Close %s"},
+	"tabs.draft":   {"草稿", "Draft"},
+	"tabs.deleted": {"原文件已删除", "File deleted"},
 
 	// 左侧元素面板
 	"sidebar.add":         {"添加元素", "Add element"},
@@ -205,7 +206,7 @@ var messages = map[string]text{
 	"font.title":        {"字体", "Font"},
 	"font.sourceHan":    {"思源黑体", "Source Han Sans"},
 	"font.system":       {"系统默认", "System default"},
-	"font.download":     {"下载开源字体", "Download open fonts"},
+	"font.download":     {"字体下载", "Font downloads"},
 	"font.close":        {"关闭", "Close"},
 	"font.official":     {"官方下载", "Official download"},
 	"font.downloadName": {"下载 %s", "Download %s"},

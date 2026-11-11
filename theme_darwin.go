@@ -10,7 +10,7 @@ import (
 	"github.com/ebitengine/purego/objc"
 )
 
-// foundationRuntime 保证读取系统外观和语言前已经加载 Foundation
+// foundationRuntime 保证读取系统外观前已经加载 Foundation
 var foundationRuntime struct {
 	once sync.Once
 	ok   bool
