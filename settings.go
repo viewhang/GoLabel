@@ -276,7 +276,6 @@ func (e *editor) languageRow(c *ui.Context) {
 			for i, label := range labels {
 				if label == value {
 					useLanguage(options[i])
-					e.status = languageStatus(options[i])
 					break
 				}
 			}

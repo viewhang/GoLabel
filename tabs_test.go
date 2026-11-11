@@ -6,7 +6,7 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// TestDocumentTabsBar 验证标签栏显示当前文档和草稿状态，并能打开新建对话框
+// TestDocumentTabsBar 验证操作提示不影响保存状态，标签栏加号能打开新建对话框
 func TestDocumentTabsBar(t *testing.T) {
 	tabs := &documentTabs{}
 	first := &editor{label: newLabel(), tabs: tabs, selected: -1, zoom: 1}
@@ -15,6 +15,7 @@ func TestDocumentTabsBar(t *testing.T) {
 	second.label.title = "咖啡豆标签"
 	tabs.editors = []*editor{first, second}
 	tabs.active = first
+	first.status = "已保存到我的模板"
 
 	tt := ui.NewTester(first.view, 980, 660)
 	for _, tab := range tabs.editors {
@@ -29,6 +30,9 @@ func TestDocumentTabsBar(t *testing.T) {
 	}
 	if !tt.HasText("草稿") {
 		t.Fatal("未保存过的文档没有显示草稿状态")
+	}
+	if !tt.HasText("已保存到我的模板") {
+		t.Fatal("没有显示保存模板的操作提示")
 	}
 	if err := tt.Click("新建标签页"); err != nil {
 		t.Fatal(err)

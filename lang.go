@@ -67,18 +67,6 @@ func languageTitle(l language) string {
 	}
 }
 
-// languageStatus 返回切换语言后显示在顶栏的提示，用切换后的语言写
-func languageStatus(l language) string {
-	switch l {
-	case languageZhHans:
-		return tr("settings.switchedZh")
-	case languageEnglish:
-		return tr("settings.switchedEn")
-	default:
-		return tr("settings.switchedSystem")
-	}
-}
-
 // applyLanguage 按偏好确定界面语言，「跟随系统」时读取系统首选语言
 func applyLanguage() language {
 	switch language(prefs.Language) {

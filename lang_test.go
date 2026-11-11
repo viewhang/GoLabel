@@ -91,13 +91,13 @@ func TestLanguageSwitch(t *testing.T) {
 	}
 }
 
-// TestLanguageCardInSettings 验证在设置里点选英文会立即生效并保存
+// TestLanguageCardInSettings 验证切换语言立即生效并保留标签栏的保存状态
 func TestLanguageCardInSettings(t *testing.T) {
 	resetLanguage(t)
 	prefs.Language = string(languageZhHans)
 	applyLanguage()
 
-	e := &editor{label: sampleLabel(), selected: -1, zoom: 1}
+	e := &editor{label: sampleLabel(), tabs: &documentTabs{}, selected: -1, zoom: 1}
 	tt := ui.NewTester(e.view, 1280, 800)
 	tt.Frame()
 	if err := tt.Click("设置"); err != nil {
@@ -122,6 +122,10 @@ func TestLanguageCardInSettings(t *testing.T) {
 		if !tt.HasText(want) {
 			t.Fatalf("英文设置页缺少 %q：%v", want, tt.Texts())
 		}
+	}
+	tt.Key(0, ui.KeyEscape)
+	if !tt.HasText("Draft") || tt.HasText("Switched to English") {
+		t.Fatalf("切换语言后标签栏未保留草稿状态：%v", tt.Texts())
 	}
 
 	// 再切回跟随系统。「跟随系统」和主题卡片同名，这里直接调用切换函数

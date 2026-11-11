@@ -51,7 +51,7 @@ type editor struct {
 	textEdit  *textEditState
 	inline    bool
 	cells     *tableSelection
-	status    string
+	status    string // 等待显示的操作反馈
 	revealTab bool
 	form      newLabelForm
 	preview   printPreview
@@ -145,6 +145,10 @@ func (e *editor) view(c *ui.Context) {
 	e.printPreviewDialog(c)
 	e.settingsDialog(c)
 	e.saveTemplateDialog(c.Key("save-template-dialog"))
+	if e.status != "" {
+		c.Toast(e.status)
+		e.status = ""
+	}
 }
 
 // header 显示品牌、文件操作、导出和打印按钮
@@ -1009,7 +1013,6 @@ func (e *editor) add(a item) {
 	e.label.Items = append(e.label.Items, a)
 	e.selectItem(len(e.label.Items) - 1)
 	e.changed()
-	e.status = ""
 }
 
 // remove 删除当前选中的标签元素

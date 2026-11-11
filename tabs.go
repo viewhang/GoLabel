@@ -181,12 +181,10 @@ func tabIconButton(c *ui.Context, label string, icon *ui.SVG, size, iconSize flo
 	}
 }
 
-// tabStatus 显示当前文档的草稿、保存状态或操作反馈
+// tabStatus 显示当前文档的保存状态
 func (e *editor) tabStatus(c *ui.Context) {
 	text, ink, dot := tr("header.saved"), colors.Success, colors.Success
 	switch {
-	case e.status != "":
-		text, ink, dot = e.status, colors.Muted, colors.Faint
 	case e.documentEdited():
 		text, ink, dot = tr("header.unsaved"), colors.Warning, colors.TabDirty
 	case e.document == nil || e.document.Path() == "":

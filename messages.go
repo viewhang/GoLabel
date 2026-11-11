@@ -174,9 +174,6 @@ var messages = map[string]text{
 	"settings.license":         {"许可", "License"},
 	"settings.switchSuffix":    {"开关", " switch"},
 	"settings.privacy":         {"所有渲染都在本机完成，标签内容和图片不会上传。", "Everything renders on this device; label content and images are never uploaded."},
-	"settings.switchedZh":      {"已切换到简体中文", "Switched to Chinese (Simplified)"},
-	"settings.switchedEn":      {"已切换到英文", "Switched to English"},
-	"settings.switchedSystem":  {"界面语言已跟随系统", "Following the system language"},
 
 	// 模板库
 	"template.library":           {"模板库", "Template library"},
