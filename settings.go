@@ -271,7 +271,7 @@ func (e *editor) languageRow(c *ui.Context) {
 	value := labels[selected]
 	ui.Row(c).Height(settingsRowHeight).Padding(0, 16).Gap(12).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, tr("settings.language")).FontSize(12.5).FontWeight(500).Grow(1).TextColor(colors.Body)
-		if ui.Combobox(c.Key("picker"), &value, labels).Width(settingsControlWidth).Height(32).Radius(7).
+		if ui.Select(c.Key("picker"), &value, labels).Width(settingsControlWidth).Height(32).Padding(6, 10).Radius(7).
 			FontSize(12).Label(tr("settings.languageRow")).Changed() {
 			for i, label := range labels {
 				if label == value {
@@ -409,7 +409,7 @@ func (e *editor) defaultSizeRow(c *ui.Context) {
 		for _, preset := range newLabelPresets {
 			options = append(options, preset.label)
 		}
-		if ui.Combobox(c.Key("size"), &value, options).Width(settingsControlWidth).Height(32).Radius(7).
+		if ui.Select(c.Key("size"), &value, options).Width(settingsControlWidth).Height(32).Padding(6, 10).Radius(7).
 			FontSize(12).Label(tr("settings.defaultSize")).Changed() {
 			for _, preset := range newLabelPresets {
 				if preset.label == value {
@@ -437,7 +437,7 @@ func (e *editor) defaultDPIRow(c *ui.Context) {
 		}
 		selected := max(0, slices.Index(resolutions[:], prefs.DefaultDPI))
 		value := options[selected]
-		if ui.Combobox(c.Key("dpi"), &value, options).Width(settingsControlWidth).Height(32).Radius(7).
+		if ui.Select(c.Key("dpi"), &value, options).Width(settingsControlWidth).Height(32).Padding(6, 10).Radius(7).
 			FontSize(12).Label(tr("settings.defaultDPI")).Changed() {
 			if i := slices.Index(options, value); i >= 0 {
 				prefs.DefaultDPI = resolutions[i]

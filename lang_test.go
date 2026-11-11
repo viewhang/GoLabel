@@ -91,7 +91,7 @@ func TestLanguageSwitch(t *testing.T) {
 	}
 }
 
-// TestLanguageCardInSettings 验证切换语言立即生效并保留标签栏的保存状态
+// TestLanguageCardInSettings 验证点击当前语言文字可展开选项，切换后保留标签栏的保存状态
 func TestLanguageCardInSettings(t *testing.T) {
 	resetLanguage(t)
 	prefs.Language = string(languageZhHans)
@@ -104,7 +104,7 @@ func TestLanguageCardInSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	tt.Frame()
-	if err := tt.Click("界面语言"); err != nil {
+	if err := tt.Click("简体中文"); err != nil {
 		t.Fatal(err)
 	}
 	tt.Frame()
