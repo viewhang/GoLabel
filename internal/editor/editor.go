@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -25,8 +26,7 @@ const (
 
 // editor 保存一个标签页的选择、平移、缩放和交互状态
 type editor struct {
-	document  *mygo.Document[*label]
-	documents *mygo.Documents[*label]
+	document  *documentFile
 	tabs      *documentTabs
 	graphics  *platform.Graphics
 	printer   *printing.System
@@ -48,37 +48,45 @@ type editor struct {
 	saveForm  templateSaveForm
 }
 
-// content 返回当前标签；未绑定文档时使用内存中的标签
-func (e *editor) content() *label {
-	if e.document != nil {
-		return e.document.Content()
-	}
-	return e.label
-}
-
 // documentName 返回当前文件名或新建标签的名称
 func (e *editor) documentName() string {
-	if e.document != nil && e.document.Path() != "" {
-		return e.document.Name()
+	if e.document != nil && e.document.path != "" {
+		return filepath.Base(e.document.path)
 	}
-	if name := e.content().title; name != "" {
-		return name
+	if e.label.title != "" {
+		return e.label.title
 	}
-	if e.document == nil {
-		return i18n.Tr("header.untitled")
+	name := i18n.Tr("header.untitled")
+	if e.document != nil && e.document.untitled > 1 {
+		name = fmt.Sprintf("%s %d", name, e.document.untitled)
 	}
-	return e.document.Name()
+	return name
 }
 
 // documentEdited 报告标签是否有未保存的修改
 func (e *editor) documentEdited() bool {
-	return e.document != nil && e.document.IsEdited()
+	return e.document != nil && e.document.edited
 }
 
-// changed 标记标签内容已修改；未绑定文档时只保留内存中的修改
+// changed 标记当前标签已修改并安排恢复副本保存
 func (e *editor) changed() {
 	if e.document != nil {
-		e.document.Changed()
+		e.document.edited = true
+		e.document.recoveryDue = time.Now().Add(time.Second)
+		e.tabs.syncWindow()
+	}
+}
+
+// loadLabel 替换文档内容并初始化元素绘制资源和编辑选区
+func (e *editor) loadLabel(l *label) {
+	e.label, e.selected, e.drag = l, -1, nil
+	e.textEdit, e.cells, e.inline = nil, nil, false
+	e.form.open, e.preview.open, e.settings.open, e.saveForm.open = false, false, false, false
+	for i := range l.Items {
+		element := &l.Items[i]
+		if e.graphics != nil && (element.Kind == kindQR || element.Kind == kindBarcode) {
+			element.prepareSymbol(e.graphics)
+		}
 	}
 }
 
@@ -87,18 +95,6 @@ func (e *editor) view(c *ui.Context) {
 	// 每帧按偏好校正配色，「跟随系统」可在系统切换外观后自动跟上
 	applyTheme()
 	c.SetTheme(appTheme())
-	l := e.content()
-	if l != e.label {
-		e.label, e.selected, e.drag = l, -1, nil
-		e.textEdit, e.cells, e.inline = nil, nil, false
-		e.form.open, e.preview.open, e.settings.open, e.saveForm.open = false, false, false, false
-		for i := range l.Items {
-			element := &l.Items[i]
-			if e.graphics != nil && (element.Kind == kindQR || element.Kind == kindBarcode) {
-				element.prepareSymbol(e.graphics)
-			}
-		}
-	}
 
 	c.OnShortcut(ui.Cmd, ui.KeyP, func() { e.openPrintPreview() })
 	c.OnShortcut(ui.Cmd, ui.KeyComma, func() { e.openSettings(settingsGeneral) })
@@ -107,10 +103,14 @@ func (e *editor) view(c *ui.Context) {
 		if e.tabs != nil {
 			e.tabBar(c.Key("tabs"))
 		}
-		ui.Row(c.Key("workspace")).Grow(1).MinHeight(0).AlignItems(ui.Stretch).Children(func() {
-			e.sidebar(c.Key("sidebar"))
-			e.canvasView(c.Key("canvas"))
-			e.inspector(c.Key("inspector"))
+		ui.Column(c.Key("workspace")).Grow(1).MinHeight(0).Children(func() {
+			if e.tabs == nil || len(e.tabs.editors) == 0 {
+				e.workspace(c.Key(e), false)
+			} else {
+				for _, tab := range e.tabs.editors {
+					tab.workspace(c.Key(tab), tab != e)
+				}
+			}
 		})
 	})
 	e.newLabelDialog(c)
@@ -121,6 +121,15 @@ func (e *editor) view(c *ui.Context) {
 		c.Toast(e.status)
 		e.status = ""
 	}
+}
+
+// workspace 保持各标签页的控件状态并仅显示活动标签的编辑区域
+func (e *editor) workspace(c *ui.Context, hidden bool) {
+	ui.Row(c).Grow(1).MinHeight(0).Hidden(hidden).AlignItems(ui.Stretch).Children(func() {
+		e.sidebar(c.Key("sidebar"))
+		e.canvasView(c.Key("canvas"))
+		e.inspector(c.Key("inspector"))
+	})
 }
 
 // header 显示品牌、文件操作、导出和打印按钮
@@ -141,14 +150,11 @@ func (e *editor) header(c *ui.Context) {
 			ui.Row(c.Key("file")).Gap(1).Shrink(0).Children(func() {
 				ghostAction(c.Key("new"), i18n.Tr("header.new"), iconPlus, func() { e.form.openNewLabel() })
 				ghostAction(c.Key("open"), i18n.Tr("header.open"), iconFolder, func() {
-					e.perform(func() error {
-						_, err := e.documents.OpenDialog()
-						return err
-					})
+					e.perform(e.tabs.openDialog)
 				})
 				fileMenuButton(c.Key("recent"), i18n.Tr("header.recent"), e.recentFilesMenu)
 				ghostAction(c.Key("save"), i18n.Tr("header.save"), iconSave, func() {
-					e.perform(e.document.Save)
+					e.perform(e.save)
 				})
 				fileMenuButton(c.Key("save-options"), i18n.Tr("header.saveOptions"), func(m *ui.Menu) {
 					if m.Item(i18n.Tr("template.saveAs")).Chosen() {
@@ -196,8 +202,7 @@ func (e *editor) recentFilesMenu(m *ui.Menu) {
 	for _, path := range paths {
 		if m.Item(filepath.Base(path)).ID(path).Subtitle(filepath.Dir(path)).Tooltip(path).Chosen() {
 			e.perform(func() error {
-				_, err := e.documents.Open(path)
-				return err
+				return e.tabs.open(path)
 			})
 		}
 	}
@@ -520,7 +525,11 @@ func (e *editor) remove() {
 func (e *editor) perform(action func() error) {
 	e.window.Update(func() {
 		if err := action(); err != nil && !errors.Is(err, mygo.ErrCanceled) {
-			e.status = err.Error()
+			target := e
+			if e.tabs != nil {
+				target = e.tabs.active
+			}
+			target.status = err.Error()
 		}
 	})
 }

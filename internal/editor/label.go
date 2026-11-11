@@ -84,7 +84,7 @@ func newLabel() *label {
 	return &label{Width: 50, Height: 30, DPI: 203}
 }
 
-// snapshot 复制可编辑的元素列表供文档控制器保存
+// snapshot 复制标签和可编辑的元素列表
 func (l *label) snapshot() *label {
 	copy := *l
 	copy.Items = slices.Clone(l.Items)

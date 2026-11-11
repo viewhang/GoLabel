@@ -28,6 +28,17 @@ var messages = map[string]Text{
 	"tabs.draft":   {"草稿", "Draft"},
 	"tabs.deleted": {"原文件已删除", "File deleted"},
 
+	// 单窗口文档操作
+	"document.fileMenu":    {"文件", "File"},
+	"document.saveAs":      {"另存为…", "Save As…"},
+	"document.closeTab":    {"关闭标签页", "Close Tab"},
+	"document.clearRecent": {"清除最近文件", "Clear Recent Files"},
+	"document.saveChanges": {"是否保存对“%s”的修改？", "Save changes to “%s”?"},
+	"document.discard":     {"不保存", "Don't Save"},
+	"document.overwrite":   {"“%s”已被其他程序修改，是否覆盖？", "“%s” was changed by another application. Overwrite it?"},
+	"document.saveAnyway":  {"仍然保存", "Save Anyway"},
+	"document.alreadyOpen": {"该文件已在其他标签页中打开，请切换到对应标签页保存", "This file is open in another tab; save it from that tab"},
+
 	// 左侧元素面板
 	"sidebar.add":         {"添加元素", "Add element"},
 	"sidebar.layers":      {"图层", "Layers"},

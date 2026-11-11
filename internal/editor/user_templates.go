@@ -135,7 +135,7 @@ func storeUserTemplate(name string, l *label) (labelTemplate, error) {
 // openSaveTemplate 打开命名对话框并预填当前标签名称
 func (e *editor) openSaveTemplate() {
 	name := e.documentName()
-	if e.document != nil && e.document.Path() != "" {
+	if e.document != nil && e.document.path != "" {
 		name = strings.TrimSuffix(name, filepath.Ext(name))
 	}
 	e.saveForm = templateSaveForm{open: true, name: name}

@@ -266,7 +266,7 @@ func (e *editor) useTemplate(t labelTemplate) {
 	e.settings.open = false
 	l := t.label()
 	l.title = t.title()
-	if e.documents == nil {
+	if e.tabs == nil {
 		e.label, e.selected, e.drag = l, -1, nil
 		e.textEdit, e.cells, e.inline = nil, nil, false
 		for i := range l.Items {
@@ -277,8 +277,7 @@ func (e *editor) useTemplate(t labelTemplate) {
 		}
 		return
 	}
-	nextLabel.Store(l)
-	e.documents.New()
+	e.tabs.newTab(l)
 }
 
 // templatePage 显示模板搜索、分类、卡片网格和选中模板预览

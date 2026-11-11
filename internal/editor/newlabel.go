@@ -3,7 +3,6 @@ package editor
 import (
 	"slices"
 	"strings"
-	"sync/atomic"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/pengh/GoLabel/internal/i18n"
@@ -44,9 +43,6 @@ type newLabelForm struct {
 	custom        bool
 }
 
-// nextLabel 暂存下一次新建文档要使用的内容
-var nextLabel atomic.Pointer[label]
-
 // openNewLabel 按设置中的默认规格打开新建对话框
 func (f *newLabelForm) openNewLabel() {
 	*f = newLabelForm{
@@ -80,13 +76,12 @@ func (e *editor) createLabel() {
 	f := &e.form
 	f.open = false
 	l := &label{Width: roundMM(f.width), Height: roundMM(f.height), DPI: f.dpi, title: strings.TrimSpace(f.name)}
-	if e.documents == nil {
+	if e.tabs == nil {
 		e.label, e.selected, e.drag = l, -1, nil
 		e.textEdit, e.cells, e.inline = nil, nil, false
 		return
 	}
-	nextLabel.Store(l)
-	e.documents.New()
+	e.tabs.newTab(l)
 }
 
 // newLabelDialog 在选择新建时显示规格对话框

@@ -8,186 +8,104 @@ import (
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 	"github.com/pengh/GoLabel/internal/i18n"
+	"github.com/pengh/GoLabel/internal/platform"
+	"github.com/pengh/GoLabel/internal/printing"
 )
 
-// documentTabs 管理标签页顺序，并只显示当前文档对应的编辑窗口
+// documentTabs 在一个主窗口中管理文档及各标签页的编辑状态
 type documentTabs struct {
-	editors []*editor
-	active  *editor
-	pending *tabSwitch
+	editors      []*editor
+	active       *editor
+	initial      *editor
+	window       *mygo.Window
+	graphics     *platform.Graphics
+	printer      *printing.System
+	nextUntitled int
+	closing      bool
 }
 
-// tabSwitch 保存退出全屏后要显示的标签和后续操作
-type tabSwitch struct {
-	target *editor
-	after  func()
+// view 在固定主窗口中构建当前标签的公共界面
+func (t *documentTabs) view(c *ui.Context) {
+	if t.active != nil {
+		t.active.view(c)
+		t.checkpoint(c)
+	}
 }
 
-// add 注册文档的标签页及其打开、状态变更和关闭事件
-func (t *documentTabs) add(e *editor) {
+// newTab 创建独立文档状态并在当前主窗口中选中标签
+func (t *documentTabs) newTab(l *label) *editor {
+	t.initial = nil
+	t.nextUntitled++
+	e := &editor{tabs: t, window: t.window, graphics: t.graphics, printer: t.printer,
+		document: &documentFile{untitled: t.nextUntitled}, selected: -1, zoom: 1}
+	e.loadLabel(l)
 	t.editors = append(t.editors, e)
-	e.window.OnShow(func() {
-		if t.active != e {
-			e.window.Update(func() {
-				if e.window.IsVisible() {
-					t.selectTab(e)
-				}
-			})
-		}
-	})
-	var fullScreen bool
-	e.window.OnClose(func(*mygo.CloseEvent) {
-		if t.active != e || len(t.editors) < 2 {
-			return
-		}
-		fullScreen = e.window.IsFullScreen() || t.pending != nil
-		i := slices.Index(t.editors, e)
-		next := i + 1
-		if next == len(t.editors) {
-			next = i - 1
-		}
-		matchTabWindow(t.editors[next].window, e.window)
-	})
-	e.window.OnClosed(func() { t.remove(e, fullScreen) })
-	e.document.OnStateChange(func(mygo.DocumentState) {
-		if t.active != nil {
-			t.active.window.Invalidate()
-		}
-	})
-	e.window.Update(func() { t.selectTab(e) })
+	t.selectTab(e)
+	return e
 }
 
-// matchTabWindow 让下一个标签页沿用当前窗口的位置和大小
-func matchTabWindow(target, source *mygo.Window) {
-	if source.IsFullScreen() || target.IsFullScreen() {
-		return
+// removeInitial 移除打开文件前尚未使用的启动空白标签
+func (t *documentTabs) removeInitial(e *editor) {
+	if !e.documentEdited() && len(e.label.Items) == 0 {
+		t.editors = slices.DeleteFunc(t.editors, func(tab *editor) bool { return tab == e })
 	}
-	if source.IsMaximized() {
-		if !target.IsMaximized() {
-			bounds := source.Bounds()
-			target.SetPosition(bounds.X, bounds.Y)
-			target.Maximize()
-		}
-		return
-	}
-	if target.IsMaximized() {
-		target.Unmaximize()
-	}
-	target.SetBounds(source.Bounds())
+	t.initial = nil
 }
 
-// selectTab 显示选中的标签
+// selectTab 写回离开标签的文字并切换活动文档
 func (t *documentTabs) selectTab(e *editor) {
-	t.switchTab(e, nil)
-}
-
-// switchTab 切换标签，全屏时先等待当前窗口退出全屏
-func (t *documentTabs) switchTab(e *editor, after func()) {
-	if e == t.active || e.window.IsDestroyed() {
+	if e == t.active {
 		return
 	}
-	if t.pending != nil {
-		if e != t.pending.target || after != nil {
-			t.pending = &tabSwitch{target: e, after: after}
-		}
-		e.window.Hide()
-		return
+	if t.active != nil {
+		t.active.flushTextEdit()
 	}
-	if previous := t.active; previous != nil && previous.window.IsFullScreen() {
-		t.pending = &tabSwitch{target: e, after: after}
-		e.window.Hide()
-		var off func()
-		off = previous.window.OnLeaveFullScreen(func() {
-			off()
-			previous.window.Update(func() {
-				if t.active != previous {
-					return
-				}
-				next := t.pending
-				t.pending = nil
-				if next.target.window.IsDestroyed() {
-					previous.window.SetFullScreen(true)
-					return
-				}
-				t.showTab(next.target, true, next.after)
-			})
-		})
-		previous.window.SetFullScreen(false)
-		return
-	}
-	t.showTab(e, false, after)
-}
-
-// showTab 显示选中的文档并在全屏就绪后执行后续操作
-func (t *documentTabs) showTab(e *editor, fullScreen bool, after func()) {
-	previous := t.active
 	t.active = e
 	e.revealTab = true
-	if previous != nil {
-		matchTabWindow(e.window, previous.window)
-	}
-	if !e.window.IsVisible() {
-		e.window.Show()
-	}
-	if previous != nil {
-		previous.window.Hide()
-	}
-	e.window.Invalidate()
-	if after != nil && fullScreen && !e.window.IsFullScreen() {
-		var off func()
-		off = e.window.OnEnterFullScreen(func() {
-			off()
-			e.window.Update(func() {
-				if t.active == e {
-					after()
-				}
-			})
-		})
-		e.window.SetFullScreen(true)
-		return
-	}
-	e.window.SetFullScreen(fullScreen)
-	if after != nil {
-		after()
-	}
+	t.syncWindow()
 }
 
-// closeTab 通过文档控制器关闭标签页，有未保存修改时先显示该文档
+// syncWindow 将当前标签的文件名和保存状态同步到主窗口
+func (t *documentTabs) syncWindow() {
+	if t.window == nil || t.active == nil {
+		return
+	}
+	e := t.active
+	t.window.SetTitle(e.documentName())
+	t.window.SetRepresentedFile(e.document.path)
+	t.window.SetDocumentEdited(e.document.edited)
+	t.window.Invalidate()
+}
+
+// closeTab 确认未保存修改后移除标签并选中相邻标签
 func (t *documentTabs) closeTab(e *editor) {
-	if e.documentEdited() && e != t.active {
-		t.switchTab(e, e.document.Close)
+	if t.closing {
 		return
 	}
-	e.document.Close()
-}
-
-// remove 移除已关闭的文档，并让相邻页继承当前页的全屏状态
-func (t *documentTabs) remove(e *editor, fullScreen bool) {
+	t.closing = true
+	defer func() { t.closing = false }()
+	if !t.confirmClose(e) {
+		return
+	}
 	i := slices.Index(t.editors, e)
+	e.stopWatching()
+	e.removeRecovery()
 	t.editors = slices.Delete(t.editors, i, i+1)
-	if t.active != e {
-		if t.active != nil {
-			t.active.window.Invalidate()
+	if e == t.active {
+		t.active = nil
+		if len(t.editors) == 0 {
+			t.newTab(newLabel())
+		} else {
+			t.selectTab(t.editors[min(i, len(t.editors)-1)])
 		}
-		return
 	}
-	t.active = nil
-	t.pending = nil
-	if len(t.editors) > 0 {
-		next := t.editors[min(i, len(t.editors)-1)]
-		next.window.Update(func() {
-			if t.active == nil && len(t.editors) > 0 {
-				next := t.editors[min(i, len(t.editors)-1)]
-				t.showTab(next, fullScreen, nil)
-			}
-		})
-	}
+	t.syncWindow()
 }
 
 // tabName 返回标签栏使用的名称，已保存文件省略扩展名
 func (e *editor) tabName() string {
 	name := e.documentName()
-	if e.document != nil && e.document.Path() != "" {
+	if e.document != nil && e.document.path != "" {
 		return strings.TrimSuffix(name, filepath.Ext(name))
 	}
 	return name
@@ -236,13 +154,13 @@ func (e *editor) documentTab(c *ui.Context, tab *editor) {
 			ui.Text(c, name).FontSize(12).FontWeight(weight).SingleLine().MaxWidth(160).TextColor(ink)
 		})
 		if button.Clicked() && !selected {
-			e.window.Update(func() { e.tabs.selectTab(tab) })
+			e.tabs.selectTab(tab)
 		}
 		if tab.documentEdited() {
 			ui.Box(c.Key("edited")).Size(5, 5).Shrink(0).Margin(0, 2).Radius(3).Background(colors.TabDirty)
 		}
 		tabIconButton(c.Key("close"), i18n.Trf("tabs.close", name), iconClose, 20, 10, colors.Faint, func() {
-			e.window.Update(func() { e.tabs.closeTab(tab) })
+			e.perform(func() error { e.tabs.closeTab(tab); return nil })
 		})
 	})
 }
@@ -263,17 +181,17 @@ func tabIconButton(c *ui.Context, label string, icon *ui.SVG, size, iconSize flo
 
 // tabStatus 显示当前文档的保存状态
 func (e *editor) tabStatus(c *ui.Context) {
-	var state mygo.DocumentState
+	var state documentFile
 	if e.document != nil {
-		state = e.document.State()
+		state = *e.document
 	}
 	text, ink, dot := i18n.Tr("header.saved"), colors.Success, colors.Success
 	switch {
-	case state.Deleted:
+	case state.deleted:
 		text, ink, dot = i18n.Tr("tabs.deleted"), colors.Warning, colors.TabDirty
-	case state.Edited:
+	case state.edited:
 		text, ink, dot = i18n.Tr("header.unsaved"), colors.Warning, colors.TabDirty
-	case state.Path == "":
+	case state.path == "":
 		text, ink, dot = i18n.Tr("tabs.draft"), colors.Muted, colors.Faint
 	}
 	ui.Row(c).Gap(6).Shrink(0).AlignItems(ui.Center).Children(func() {

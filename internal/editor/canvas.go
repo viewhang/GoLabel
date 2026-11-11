@@ -63,11 +63,11 @@ func (e *editor) canvasView(c *ui.Context) {
 			e.inline = false
 			canvas.Focus()
 		}
-		if e.inline && canvas.FocusLeft() {
+		if e.inline && (e.tabs == nil || e.tabs.active == e) && canvas.FocusLeft() {
 			e.inline = false
 		}
 		canvas.Children(func() {
-			if e.inline {
+			if e.inline && (e.tabs == nil || e.tabs.active == e) {
 				e.inlineEditor(c.Key("inline-text"), canvas)
 			}
 		})

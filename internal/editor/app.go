@@ -1,15 +1,17 @@
 package editor
 
 import (
+	"path/filepath"
+	"strings"
+
 	"github.com/egoist/mygo"
 	_ "github.com/egoist/mygo/locales/zh-Hans"
 	"github.com/egoist/mygo/ui"
-	"github.com/pengh/GoLabel/internal/i18n"
 	"github.com/pengh/GoLabel/internal/platform"
 	"github.com/pengh/GoLabel/internal/printing"
 )
 
-// Run 注册标签文档和 MyGo 原生编辑窗口，再运行应用
+// Run 创建单个原生主窗口并运行多标签文档编辑器
 func Run() error {
 	graphics, err := platform.OpenGraphics()
 	if err != nil {
@@ -23,47 +25,65 @@ func Run() error {
 	if !mygo.App.RequestSingleInstanceLock() {
 		return nil
 	}
-	// 应用自己的语言排在前面，系统语言都不匹配时用它
+	tabs := &documentTabs{graphics: graphics, printer: printer}
 	mygo.App.SetLanguages(string(languageZhHans), string(languageEnglish))
-	mygo.App.OnLocaleChanged(func(string) { resetFontMenu() })
+	mygo.App.OnLocaleChanged(func(string) {
+		resetFontMenu()
+		if tabs.window != nil {
+			tabs.installMenu()
+			tabs.syncWindow()
+		}
+	})
 	loadPreferences()
 	applyLanguage()
 	setNativeTheme = mygo.Theme.SetSource
 	applyThemePreference()
 	loadUserTemplates()
-	tabs := &documentTabs{}
-	mygo.App.OnSecondInstance(func(args []string, _ string) {
-		// 文件参数由 MyGo 文档控制器打开，普通启动恢复当前标签窗口
-		if len(args) == 0 && tabs.active != nil {
-			window := tabs.active.window
-			window.Restore()
-			window.Focus()
+	mygo.App.WhenReady(tabs.openWindow)
+	mygo.App.OnOpenFile(func(path string) {
+		if !strings.EqualFold(filepath.Ext(path), ".golabel") {
+			return
 		}
-	})
-	var documents *mygo.Documents[*label]
-	documents = mygo.NewDocuments(mygo.DocumentsOptions[*label]{
-		Types: []mygo.DocumentType{{Name: i18n.Tr("app.templateType"), Extensions: []string{"golabel"}}},
-		New: func() *label {
-			// 新建对话框选好规格后先暂存，文档控制器创建时取用
-			if l := nextLabel.Swap(nil); l != nil {
-				return l
-			}
-			return newLabel()
-		},
-		Read:      readLabel,
-		Write:     writeLabel,
-		Snapshot:  (*label).snapshot,
-		Autosave:  mygo.AutosaveOff,
-		AskOnQuit: true,
-		Window: func(document *mygo.Document[*label]) *mygo.Window {
-			e := &editor{document: document, documents: documents, graphics: graphics, printer: printer, tabs: tabs, selected: -1, zoom: 1}
-			e.window = mygo.NewWindow(mygo.WindowOptions{
-				Title: "GoLabel", Width: 1280, Height: 800, MinWidth: 980, MinHeight: 660,
-				Content: ui.View(e.view), Hidden: true,
+		mygo.App.WhenReady(func() {
+			tabs.active.perform(func() error {
+				if err := tabs.open(path); err != nil {
+					return err
+				}
+				tabs.window.Show()
+				tabs.window.Restore()
+				tabs.window.Focus()
+				return nil
 			})
-			tabs.add(e)
-			return e.window
-		},
+		})
+	})
+	mygo.App.OnSecondInstance(func([]string, string) {
+		mygo.App.WhenReady(func() {
+			tabs.window.Restore()
+			tabs.window.Focus()
+		})
 	})
 	return mygo.App.Run()
+}
+
+// openWindow 在应用就绪后创建唯一主窗口并恢复未保存标签
+func (tabs *documentTabs) openWindow() {
+	tabs.initial = tabs.newTab(newLabel())
+	tabs.window = mygo.NewWindow(mygo.WindowOptions{
+		Title: "GoLabel", Width: 1280, Height: 800, MinWidth: 980, MinHeight: 660,
+		Content: ui.View(tabs.view), Hidden: true,
+	})
+	tabs.active.window = tabs.window
+	tabs.window.OnClose(tabs.closeWindow)
+	tabs.window.OnFocus(func() {
+		for _, e := range tabs.editors {
+			e.flushTextEdit()
+			if e.document.path != "" {
+				e.checkFile()
+			}
+		}
+	})
+	tabs.restoreRecovery()
+	tabs.installMenu()
+	tabs.syncWindow()
+	tabs.window.Show()
 }
