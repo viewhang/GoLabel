@@ -49,12 +49,12 @@ func TestLanguageSwitch(t *testing.T) {
 	tt := ui.NewTester(e.view, 1280, 800)
 	tt.Frame()
 	for _, want := range []string{"New", "Open", "Save", "Templates", "Settings", "Export PDF",
-		"Print", "Add element", "Layers", "Size", "Resolution", "Elements on canvas"} {
+		"Print", "Add element", "Layers", "Size", "Resolution"} {
 		if !tt.HasText(want) {
 			t.Fatalf("英文界面缺少 %q：%v", want, tt.Texts())
 		}
 	}
-	for _, chinese := range []string{"新建", "添加元素", "图层", "画布中的元素"} {
+	for _, chinese := range []string{"新建", "添加元素", "图层"} {
 		if tt.HasText(chinese) {
 			t.Fatalf("切换到英文后仍显示中文 %q：%v", chinese, tt.Texts())
 		}

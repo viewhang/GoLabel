@@ -98,7 +98,6 @@ var messages = map[string]text{
 	"inspector.height":      {"高度", "Height"},
 	"inspector.print":       {"打印", "Print"},
 	"inspector.resolution":  {"分辨率", "Resolution"},
-	"inspector.elements":    {"画布中的元素", "Elements on canvas"},
 	"inspector.position":    {"位置与尺寸", "Position & size"},
 	"inspector.length":      {"长度", "Length"},
 

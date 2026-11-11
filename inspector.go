@@ -82,7 +82,7 @@ func (e *editor) inspectorHeader(c *ui.Context, title string, icon *ui.SVG, remo
 	return remove
 }
 
-// labelProperties 显示标签尺寸、打印分辨率和元素数量
+// labelProperties 显示标签尺寸和打印分辨率
 func (e *editor) labelProperties(c *ui.Context) {
 	l := e.label
 	width, height, dpi := l.Width, l.Height, l.DPI
@@ -112,13 +112,6 @@ func (e *editor) labelProperties(c *ui.Context) {
 	if width != l.Width || height != l.Height || dpi != l.DPI {
 		e.changed()
 	}
-
-	hairline(c.Key("divider-2"))
-
-	ui.Row(c.Key("summary")).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, tr("inspector.elements")).FontSize(12).TextColor(colors.Muted).Grow(1)
-		ui.Textf(c, "%d", len(l.Items)).FontSize(12).FontWeight(600).TextColor(colors.Text)
-	})
 }
 
 // positionProperties 显示元素的位置和毫米尺寸
