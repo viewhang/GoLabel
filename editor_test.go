@@ -6,6 +6,29 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
+// TestCanvasDrawsHeightRulerOnFirstFrame 验证默认窗口的左侧标尺首帧就显示高度
+func TestCanvasDrawsHeightRulerOnFirstFrame(t *testing.T) {
+	// width 和 height 是默认窗口扣除顶栏和两侧面板后的画布尺寸
+	const width, height = 700, 738
+	ink := colors.RulerText
+	colors.RulerText = ui.RGB(255, 0, 0)
+	t.Cleanup(func() { colors.RulerText = ink })
+
+	e := &editor{label: newLabel(), selected: -1, zoom: 1}
+	img := ui.NewTester(e.canvasView, width, height).Image()
+	paper := e.paperRect(ui.Rect{W: width, H: height})
+	centerY := int(paper.Y + paper.H/2)
+	for y := centerY - 24; y < centerY+24; y++ {
+		for x := int(paper.X) - 42; x < int(paper.X)-9; x++ {
+			pixel := img.RGBAAt(x, y)
+			if int(pixel.R)-int(pixel.G) > 32 {
+				return
+			}
+		}
+	}
+	t.Fatal("首次绘制没有显示左侧标尺数字")
+}
+
 // TestCanvasDragGuides 验证缩放下的对齐吸附及取消拖动后的状态
 func TestCanvasDragGuides(t *testing.T) {
 	// width 和 height 是测试画布的宽高

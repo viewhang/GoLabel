@@ -237,19 +237,6 @@ func outlineAction(c *ui.Context, label string, icon *ui.SVG, enabled bool, acti
 	if !enabled {
 		style.ink, style.border, style.fill = colors.Disabled, colors.Divider, colors.FieldBg
 	}
-	outlineButton(c, label, icon, enabled, action, style)
-}
-
-// paperOutlineAction 显示画在白色标签纸上的描边按钮，始终用浅色
-func paperOutlineAction(c *ui.Context, label string, icon *ui.SVG, enabled bool, action func()) {
-	outlineButton(c, label, icon, enabled, action, outlineStyle{
-		ink: colors.PaperInk, border: colors.PaperLine, fill: colors.Paper,
-		hover: colors.PaperChip, hoverBorder: colors.PaperMuted,
-	})
-}
-
-// outlineButton 按给定的配色绘制描边的次要按钮
-func outlineButton(c *ui.Context, label string, icon *ui.SVG, enabled bool, action func(), style outlineStyle) {
 	button := ui.ButtonBase(c).Height(34).Padding(0, 12).Radius(8).Gap(6).Shrink(0).
 		AlignItems(ui.Center).Role(ui.RoleButton).Label(label).Disabled(!enabled).
 		BorderWidth(1).BorderColor(style.border).Background(style.fill)
@@ -535,13 +522,9 @@ func (e *editor) canvasView(c *ui.Context) {
 		viewport := ui.Rect{W: bounds.W, H: bounds.H}
 		e.trackViewport(c, canvas, viewport)
 		paper := e.paperRect(viewport)
-		if len(e.label.Items) == 0 && !e.inline {
-			e.emptyPaper(c.Key("empty-paper"), paper)
-		}
 		if a := e.selectedItem(); a != nil && a.Kind == kindText && !e.inline {
 			e.textToolbar(c.Key("text-toolbar"), a, paper)
 		}
-		e.heightRuler(c.Key("height-ruler"), paper, viewport)
 		e.zoomControl(c.Key("zoom"), viewport)
 	})
 }
@@ -562,29 +545,6 @@ func (e *editor) selectedItem() *item {
 		return nil
 	}
 	return &e.label.Items[e.selected]
-}
-
-// emptyPaper 在空白标签上提示添加文字或图片
-func (e *editor) emptyPaper(c *ui.Context, paper ui.Rect) {
-	ui.Column(c).Absolute().Left(paper.X).Top(paper.Y).Size(paper.W, paper.H).Padding(26).
-		PassThrough().Children(func() {
-		ui.Column(c.Key("card")).Fill().Gap(18).Radius(6).PassThrough().
-			BorderWidth(1.5).BorderStyle(ui.BorderDashed).BorderColor(colors.PaperLine).
-			Background(colors.Paper).AlignItems(ui.Center).Justify(ui.Center).Children(func() {
-			ui.Row(c.Key("badge")).Size(48, 48).Radius(12).Background(colors.PaperChip).
-				Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-				ui.Icon(c, iconPlus).Size(22, 22).TextColor(colors.PaperMuted)
-			})
-			ui.Row(c.Key("actions")).Gap(8).Children(func() {
-				accentAction(c.Key("add-text"), tr("canvas.addText"), iconText, true, func() {
-					e.add(item{Kind: kindText, X: 2, Y: 2})
-				})
-				paperOutlineAction(c.Key("import"), tr("canvas.import"), iconPicture, true, func() {
-					e.perform(func() error { return e.importImage(2, 2) })
-				})
-			})
-		})
-	})
 }
 
 // textToolbar 在选中的文字框上方显示格式和缩进快捷按钮
@@ -793,19 +753,16 @@ func (e *editor) paintRulers(p *ui.Painter, viewport, paper ui.Rect) {
 	p.Line(left, paper.Y, left, paper.Y+paper.H, 1, line)
 	p.Line(left-3, paper.Y, left+3, paper.Y, 1, line)
 	p.Line(left-3, paper.Y+paper.H, left+3, paper.Y+paper.H, 1, line)
-}
-
-// heightRuler 在纸张左侧竖排显示标签高度
-func (e *editor) heightRuler(c *ui.Context, paper, viewport ui.Rect) {
-	left := paper.X - 16
-	if left-40 < viewport.X {
+	layout := ui.ShapeText(fmt.Sprintf("%g mm", e.label.Height), ui.Font{Size: 10}, 0)
+	w, h := layout.Size()
+	centerX, centerY := left-10, paper.Y+paper.H/2
+	if centerX-h/2 < viewport.X {
 		return
 	}
-	ui.Box(c).Absolute().Left(left-40).Top(paper.Y+paper.H/2-10).Size(60, 20).PassThrough().
-		Justify(ui.Center).AlignItems(ui.Center).Children(func() {
-		text := ui.Textf(c.Key("text"), "%g mm", e.label.Height).FontSize(10).
-			SingleLine().TextColor(colors.RulerText)
-		text.Rotate(90).Background(colors.Canvas)
+	p.Transform(ui.Rotation(90), centerX, centerY, func() {
+		x, y := centerX-w/2, centerY-h/2
+		p.Fill(ui.Rect{X: x, Y: y, W: w, H: h}, colors.Canvas, 0)
+		p.TextLayout(layout, x, y, colors.RulerText)
 	})
 }
 

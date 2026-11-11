@@ -38,8 +38,6 @@ var messages = map[string]text{
 
 	// 画布
 	"canvas.label":     {"标签画布", "Label canvas"},
-	"canvas.addText":   {"添加文字", "Add text"},
-	"canvas.import":    {"导入图片", "Import image"},
 	"canvas.zoomOut":   {"缩小", "Zoom out"},
 	"canvas.zoomIn":    {"放大", "Zoom in"},
 	"canvas.zoomLevel": {"缩放比例", "Zoom level"},

@@ -24,8 +24,6 @@ type palette struct {
 	Divider, Hairline, FieldBorder, CardBorder ui.Color
 	BorderHover, BorderStrong, DashBorder      ui.Color
 	Paper, PaperBorder                         ui.Color
-	// 画在白纸上的浮层固定使用浅色，纸张在深浅主题下都是白的
-	PaperInk, PaperMuted, PaperLine, PaperChip ui.Color
 
 	// 文字；Section 用于「外观」「添加元素」这类分组小标题
 	Heading, Text, Body, Body2, Muted, Faint, Disabled, Section ui.Color
@@ -153,12 +151,6 @@ var darkPalette = palette{
 	// 纸张始终是白色的标签，深色下也不改，只让描边收进背景
 	Paper:       ui.Hex("#FFFFFF"),
 	PaperBorder: ui.Hex("#3A4454"),
-
-	// 画在白纸上的浮层固定使用浅色，纸张在深浅主题下都是白的
-	PaperInk:   ui.Hex("#111827"),
-	PaperMuted: ui.Hex("#6B7280"),
-	PaperLine:  ui.Hex("#DFE5EC"),
-	PaperChip:  ui.Hex("#F2F5F9"),
 
 	Heading:  ui.Hex("#F2F5FA"),
 	Text:     ui.Hex("#E8EDF5"),

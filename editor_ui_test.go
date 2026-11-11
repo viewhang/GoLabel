@@ -80,17 +80,15 @@ func TestZoomControl(t *testing.T) {
 	}
 }
 
-// TestEmptyStateAddsText 验证空白标签上的添加文字按钮
-func TestEmptyStateAddsText(t *testing.T) {
-	l := newLabel()
-	e := &editor{label: l, selected: -1, zoom: 1}
+// TestEmptyCanvasHasNoAddButtons 验证空白标签不显示添加元素按钮
+func TestEmptyCanvasHasNoAddButtons(t *testing.T) {
+	e := &editor{label: newLabel(), selected: -1, zoom: 1}
 	tt := ui.NewTester(e.view, 1280, 800)
 	tt.Frame()
-	if err := tt.Click("添加文字"); err != nil {
-		t.Fatal(err)
-	}
-	if len(l.Items) != 1 || e.selected != 0 {
-		t.Fatalf("空白状态未添加文字：%d 个元素，选中 %d", len(l.Items), e.selected)
+	for _, label := range []string{"添加文字", "导入图片"} {
+		if _, ok := tt.Find(label); ok {
+			t.Fatalf("空白标签显示了 %q 按钮", label)
+		}
 	}
 }
 
