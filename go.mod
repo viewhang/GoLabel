@@ -6,7 +6,7 @@ require (
 	codeberg.org/go-pdf/fpdf v0.12.0
 	github.com/boombuler/barcode v1.1.0
 	github.com/ebitengine/purego v0.11.1
-	github.com/egoist/mygo v0.8.3
+	github.com/egoist/mygo v0.9.0
 	github.com/go-text/typesetting v0.3.5
 	golang.org/x/sys v0.48.0
 )

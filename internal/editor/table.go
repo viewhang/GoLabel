@@ -2,6 +2,7 @@ package editor
 
 import (
 	"encoding/json"
+	"math"
 	"slices"
 
 	"github.com/egoist/mygo/ui"
@@ -48,6 +49,61 @@ type tableSelection struct {
 	start, end cellRange
 }
 
+// tableAxis 保存行或列的内部分隔线比例，空值表示等分
+type tableAxis []float64
+
+// position 返回指定分隔线或外边缘相对表格边长的位置
+func (axis tableAxis) position(index, count int) float64 {
+	if index == 0 || index == count || len(axis) == 0 {
+		return float64(index) / float64(count)
+	}
+	return axis[index-1]
+}
+
+// valid 检查分隔线数量及其在表格内部的递增顺序
+func (axis tableAxis) valid(count int) bool {
+	if len(axis) == 0 {
+		return true
+	}
+	if len(axis) != count-1 {
+		return false
+	}
+	previous := 0.0
+	for _, edge := range axis {
+		if !(edge > previous && edge < 1) {
+			return false
+		}
+		previous = edge
+	}
+	return true
+}
+
+// cellAt 返回相对位置所在的行或列序号
+func (axis tableAxis) cellAt(position float64, count int) int {
+	index := 0
+	for index < count-1 && position >= axis.position(index+1, count) {
+		index++
+	}
+	return index
+}
+
+// moved 按毫米位移调整分隔线并保留相邻单元格及已有快照
+func (axis tableAxis) moved(index, count int, delta, size float64) tableAxis {
+	start := axis.position(index, count)
+	left, right := axis.position(index-1, count), axis.position(index+1, count)
+	gap := min(minimumItem/size, start-left, right-start)
+	next := min(right-gap, max(left+gap, start+roundMM(delta)/size))
+	if next == start {
+		return axis
+	}
+	edges := make(tableAxis, count-1)
+	for i := range edges {
+		edges[i] = axis.position(i+1, count)
+	}
+	edges[index-1] = next
+	return edges
+}
+
 // overlaps 判断两个单元格区域是否有交集
 func (r cellRange) overlaps(other cellRange) bool {
 	return r.Top <= other.Bottom && other.Top <= r.Bottom && r.Left <= other.Right && other.Left <= r.Right
@@ -80,10 +136,11 @@ func (s tableSelection) bounds(a *item) cellRange {
 	}
 }
 
-// validTable 检查表格的行列数、线宽、单元格和合并区域
+// validTable 检查表格的行列数、分隔线、线宽、单元格和合并区域
 func (e *item) validTable() bool {
 	if e.Rows < 1 || e.Rows > maximumTableCount || e.Columns < 1 || e.Columns > maximumTableCount ||
-		!within(e.Stroke, minimumLineWidth, maximumTableStroke) || len(e.Cells) > maximumTableCount {
+		!within(e.Stroke, minimumLineWidth, maximumTableStroke) || len(e.Cells) > maximumTableCount ||
+		!e.RowEdges.valid(e.Rows) || !e.ColumnEdges.valid(e.Columns) {
 		return false
 	}
 	for _, row := range e.Cells {
@@ -108,17 +165,17 @@ func (e *item) validTable() bool {
 
 // rangeBox 计算单元格区域在画布或打印页中的边界
 func (e *item) rangeBox(table ui.Rect, area cellRange) ui.Rect {
-	left := table.X + float32(area.Left)/float32(e.Columns)*table.W
-	right := table.X + float32(area.Right+1)/float32(e.Columns)*table.W
-	top := table.Y + float32(area.Top)/float32(e.Rows)*table.H
-	bottom := table.Y + float32(area.Bottom+1)/float32(e.Rows)*table.H
+	left := table.X + float32(e.ColumnEdges.position(area.Left, e.Columns))*table.W
+	right := table.X + float32(e.ColumnEdges.position(area.Right+1, e.Columns))*table.W
+	top := table.Y + float32(e.RowEdges.position(area.Top, e.Rows))*table.H
+	bottom := table.Y + float32(e.RowEdges.position(area.Bottom+1, e.Rows))*table.H
 	return ui.Rect{X: left, Y: top, W: right - left, H: bottom - top}
 }
 
 // cellAt 返回指针所在的普通或合并单元格
 func (e *item) cellAt(box ui.Rect, x, y float32) cellRange {
-	row := min(e.Rows-1, max(0, int((y-box.Y)/box.H*float32(e.Rows))))
-	column := min(e.Columns-1, max(0, int((x-box.X)/box.W*float32(e.Columns))))
+	row := e.RowEdges.cellAt(float64((y-box.Y)/box.H), e.Rows)
+	column := e.ColumnEdges.cellAt(float64((x-box.X)/box.W), e.Columns)
 	cell := cellRange{Top: row, Left: column, Bottom: row, Right: column}
 	for _, area := range e.Merges {
 		if area.overlaps(cell) {
@@ -126,6 +183,48 @@ func (e *item) cellAt(box ui.Rect, x, y float32) cellRange {
 		}
 	}
 	return cell
+}
+
+// tableDividerAt 返回指针附近可见的内部行列分隔线
+func (e *item) tableDividerAt(box ui.Rect, x, y float32) (row, column int) {
+	if !box.Contains(x, y) {
+		return
+	}
+	area := e.cellAt(box, x, y)
+	cell := e.rangeBox(box, area)
+	if area.Left > 0 && math.Abs(float64(x-cell.X)) <= handleSize/2 {
+		column = area.Left
+	} else if area.Right+1 < e.Columns && math.Abs(float64(x-cell.X-cell.W)) <= handleSize/2 {
+		column = area.Right + 1
+	}
+	if area.Top > 0 && math.Abs(float64(y-cell.Y)) <= handleSize/2 {
+		row = area.Top
+	} else if area.Bottom+1 < e.Rows && math.Abs(float64(y-cell.Y-cell.H)) <= handleSize/2 {
+		row = area.Bottom + 1
+	}
+	return
+}
+
+// tableResizeCursor 在表格分隔线上显示对应方向的拖动光标
+func (e *editor) tableResizeCursor(canvas ui.Element, paper ui.Rect) {
+	a := e.selectedItem()
+	if a == nil || a.Kind != kindTable || e.inline {
+		return
+	}
+	row, column := 0, 0
+	if e.drag != nil {
+		row, column = e.drag.tableRow, e.drag.tableColumn
+	} else if x, y, over := canvas.PointerPosition(); over {
+		row, column = a.tableDividerAt(a.box(e.label, paper), x, y)
+	}
+	switch {
+	case row > 0 && column > 0:
+		canvas.Cursor(ui.CursorMove)
+	case row > 0:
+		canvas.Cursor(ui.CursorResizeRow)
+	case column > 0:
+		canvas.Cursor(ui.CursorResizeColumn)
+	}
 }
 
 // tableInterior 返回表格内可选单元格的范围
@@ -188,7 +287,7 @@ func tableTextBox(rect ui.Rect, unitsPerMM float32) ui.Rect {
 
 // paintTable 绘制合并后的单元格文字和表格边界
 func (e *item) paintTable(p *ui.Painter, rect ui.Rect, unitsPerMM float32, ink ui.Color) {
-	width := max(1, float32(e.Stroke)*unitsPerMM)
+	width := float32(e.Stroke) * unitsPerMM
 	var merges [maximumTableCount][maximumTableCount]*cellRange
 	for i := range e.Merges {
 		area := &e.Merges[i]
@@ -250,6 +349,12 @@ func (e *editor) tableProperties(c *ui.Context, a *item) {
 		ui.Text(c, i18n.Tr("table.stroke")).FontSize(10).TextColor(colors.Muted)
 		inspectorNumber(c.Key("stroke"), i18n.Tr("table.stroke"), "mm", 0, &a.Stroke, minimumLineWidth, maximumTableStroke, 1, false)
 	})
+	if rows != a.Rows {
+		a.RowEdges = nil
+	}
+	if columns != a.Columns {
+		a.ColumnEdges = nil
+	}
 	if rows != a.Rows || columns != a.Columns || stroke != a.Stroke {
 		e.changed()
 	}

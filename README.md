@@ -24,13 +24,13 @@ go run .
 在 macOS 上运行以下命令，应用包输出到 `build/darwin-<架构>/`。
 
 ```sh
-go run github.com/egoist/mygo/cmd/mygo build -skip-dmg
+go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -skip-dmg
 ```
 
 默认只编译当前机器架构（Apple 芯片为 `darwin-arm64`）。要让同一份应用同时支持 Apple 芯片和 Intel Mac，改用通用包：
 
 ```sh
-go run github.com/egoist/mygo/cmd/mygo build -platform darwin/universal -skip-dmg
+go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -platform darwin/universal -skip-dmg
 ```
 
 产物在 `build/darwin-universal/GoLabel.app`，可直接拷贝到其他 Mac 使用。
@@ -40,7 +40,7 @@ go run github.com/egoist/mygo/cmd/mygo build -platform darwin/universal -skip-dm
 在项目目录运行以下命令，可在 Windows 本机编译，也可在 macOS 上交叉编译。生成 Setup 需要 [NSIS](https://nsis.sourceforge.io/)：Windows 上 MyGo 会在需要时下载；macOS 上先运行 `brew install makensis`。
 
 ```sh
-go run github.com/egoist/mygo/cmd/mygo build -platform windows/amd64
+go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -platform windows/amd64
 ```
 
 产物在 `build/windows-amd64/`，适用于 Windows 10/11 64 位（Intel / AMD）：
@@ -55,6 +55,8 @@ go run github.com/egoist/mygo/cmd/mygo build -platform windows/amd64
 新建或打开的标签共用一个原生主窗口。切换标签时保留各页的内容、富文本选区与撤销记录、元素和单元格选区、画布缩放、平移及面板滚动位置，全屏状态不变。重复打开同一文件会切换到已有标签。点击标签栏的「+」可新建标签，橙色圆点标记未保存的修改。
 
 保存、另存为和关闭标签页的菜单及快捷键作用于当前标签。关闭主窗口时逐一确认未保存的修改，取消后全部标签继续保留；关闭最后一个标签会留下空白标签。未保存内容在编辑暂停后保存到配置目录的 `label-recovery`，异常退出后下次启动恢复。
+
+选中表格后，拖动内部横线或竖线可调整行高、列宽，拖动交点可同时调整两个方向。表格外框尺寸保持不变，调整后的布局随 `.golabel` 文件保存并用于打印。
 
 左侧添加富文本、PNG/JPEG、Code 128 或二维码。文字属性支持格式、字体、字号、对齐和横排或竖排。拖动元素调整位置，拖动四角手柄调整大小，也可以在右侧输入毫米尺寸。保存为 `.golabel` 后可再次打开，图片会随模板保存。
 

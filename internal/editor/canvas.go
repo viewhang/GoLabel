@@ -3,6 +3,7 @@ package editor
 import (
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/richtext"
@@ -24,7 +25,7 @@ const (
 	handleSize = 8
 )
 
-// gesture 记录元素拖动或单元格拖选的起点状态
+// gesture 记录元素拖动、单元格拖选和行列尺寸调整的起点状态
 type gesture struct {
 	item           item
 	startX, startY float32
@@ -33,6 +34,8 @@ type gesture struct {
 	guideX, guideY alignmentGuide
 	selectCells    bool
 	previousCells  *tableSelection
+	tableRow       int
+	tableColumn    int
 }
 
 // alignmentGuide 保存标签毫米坐标中的一条对齐线
@@ -76,6 +79,7 @@ func (e *editor) canvasView(c *ui.Context) {
 		viewport := ui.Rect{W: bounds.W, H: bounds.H}
 		e.trackViewport(c, canvas, viewport)
 		paper := e.paperRect(viewport)
+		e.tableResizeCursor(canvas, paper)
 		if a := e.selectedItem(); a != nil && a.Kind == kindText && !e.inline {
 			e.textToolbar(c.Key("text-toolbar"), a, paper)
 		}
@@ -391,6 +395,13 @@ func (e *editor) handleCanvas(c *ui.Context, ev ui.InputEvent) bool {
 					return true
 				}
 			}
+			if a.Kind == kindTable {
+				row, column := a.tableDividerAt(a.box(l, paper), ev.X, ev.Y)
+				if row > 0 || column > 0 {
+					e.drag = &gesture{item: *a, startX: ev.X, startY: ev.Y, tableRow: row, tableColumn: column}
+					return true
+				}
+			}
 		}
 		previous := e.selected
 		for i := len(l.Items) - 1; i >= 0; i-- {
@@ -424,7 +435,14 @@ func (e *editor) handleCanvas(c *ui.Context, ev ui.InputEvent) bool {
 		}
 		dx := float64(ev.X-d.startX) * l.Width / float64(paper.W)
 		dy := float64(ev.Y-d.startY) * l.Height / float64(paper.H)
-		if d.resize {
+		if d.tableRow > 0 || d.tableColumn > 0 {
+			if d.tableRow > 0 {
+				a.RowEdges = d.item.RowEdges.moved(d.tableRow, a.Rows, dy, a.H)
+			}
+			if d.tableColumn > 0 {
+				a.ColumnEdges = d.item.ColumnEdges.moved(d.tableColumn, a.Columns, dx, a.W)
+			}
+		} else if d.resize {
 			e.resize(d, a, dx, dy)
 		} else if !prefs.SnapGuides {
 			a.X, a.Y = d.item.X+dx, d.item.Y+dy
@@ -451,7 +469,8 @@ func (e *editor) handleCanvas(c *ui.Context, ev ui.InputEvent) bool {
 		before := d.item
 		if ev.Canceled {
 			*a = before
-		} else if before.X != a.X || before.Y != a.Y || before.W != a.W || before.H != a.H {
+		} else if before.X != a.X || before.Y != a.Y || before.W != a.W || before.H != a.H ||
+			!slices.Equal(before.RowEdges, a.RowEdges) || !slices.Equal(before.ColumnEdges, a.ColumnEdges) {
 			e.changed()
 		}
 		return true

@@ -192,6 +192,34 @@ func TestGraphicProperties(t *testing.T) {
 	saveImage(t, "golabel-line-properties", tt)
 }
 
+// TestThinStrokeWidth 验证线条、图形和表格可输入并保存零点一毫米线宽
+func TestThinStrokeWidth(t *testing.T) {
+	for _, kind := range []itemKind{kindLine, kindTable, kindRectangle, kindEllipse, kindDiamond, kindTriangle, kindStar, kindHexagon} {
+		t.Run(string(kind), func(t *testing.T) {
+			l := newLabel()
+			l.Items = []item{{Kind: kind, X: 2, Y: 2, W: 20, H: 10, Rows: 2, Columns: 2, Stroke: 0.3}}
+			e := &editor{label: l, selected: 0, zoom: 1}
+			tt := ui.NewTester(e.view, 1280, 900)
+			if err := tt.Click("线宽（mm）"); err != nil {
+				t.Fatal(err)
+			}
+			tt.Key(ui.Cmd, ui.KeyA)
+			tt.Type("0.1")
+			if l.Items[0].Stroke != 0.1 {
+				t.Fatalf("零点一毫米线宽未生效：%g", l.Items[0].Stroke)
+			}
+			var saved bytes.Buffer
+			if err := writeLabel(&saved, l); err != nil {
+				t.Fatal(err)
+			}
+			reopened, err := readLabel(&saved)
+			if err != nil || reopened.Items[0].Stroke != 0.1 {
+				t.Fatalf("零点一毫米线宽无法保存重开：%v", err)
+			}
+		})
+	}
+}
+
 // TestInvalidGraphicData 验证文件输入拒绝无效线型、线宽和圆角
 func TestInvalidGraphicData(t *testing.T) {
 	for _, a := range []item{

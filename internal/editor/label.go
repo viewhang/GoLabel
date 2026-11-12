@@ -31,7 +31,7 @@ const (
 	kindQR itemKind = "qr"
 	// kindLine 表示支持独立线宽和多种线型的线条
 	kindLine itemKind = "line"
-	// kindTable 表示等宽等高单元格组成的表格
+	// kindTable 表示支持调整行高列宽和合并单元格的表格
 	kindTable itemKind = "table"
 	// kindRectangle 表示可调圆角的矩形
 	kindRectangle itemKind = "rectangle"
@@ -51,8 +51,8 @@ const (
 	maximumSide = 200
 	// minimumItem 是元素宽高的最小毫米数
 	minimumItem = 1
-	// minimumLineWidth 是横线和表格线宽的最小毫米数
-	minimumLineWidth = 0.2
+	// minimumLineWidth 是线条、图形描边和表格线宽的最小毫米数
+	minimumLineWidth = 0.1
 )
 
 // label 保存标签尺寸、打印分辨率和按绘制顺序排列的元素
@@ -73,12 +73,14 @@ type item struct {
 	W    float64  `json:"widthMm"`
 	H    float64  `json:"heightMm"`
 	labelText
-	Data    []byte         `json:"image,omitempty"`
-	Rows    int            `json:"rows,omitempty"`
-	Columns int            `json:"columns,omitempty"`
-	Stroke  float64        `json:"strokeMm,omitempty"`
-	Cells   [][]*tableCell `json:"cells,omitempty"`
-	Merges  []cellRange    `json:"merges,omitempty"`
+	Data        []byte         `json:"image,omitempty"`
+	Rows        int            `json:"rows,omitempty"`
+	Columns     int            `json:"columns,omitempty"`
+	Stroke      float64        `json:"strokeMm,omitempty"`
+	Cells       [][]*tableCell `json:"cells,omitempty"`
+	Merges      []cellRange    `json:"merges,omitempty"`
+	RowEdges    tableAxis      `json:"rowEdges,omitempty"`
+	ColumnEdges tableAxis      `json:"columnEdges,omitempty"`
 
 	CornerRadius float64   `json:"cornerRadiusMm,omitempty"`
 	Filled       bool      `json:"filled,omitempty"`
