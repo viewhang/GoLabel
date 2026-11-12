@@ -81,6 +81,25 @@ The installer requires NSIS. On macOS, install it with `brew install makensis`; 
 go test ./...
 ```
 
+## Releases
+
+The first release is **v0.1.0**. The tag must match the `version` in `mygo.json`, prefixed with `v`.
+
+After committing and pushing the workflow and version configuration, publish a release by pushing an annotated tag:
+
+```sh
+git tag -a v0.1.0 -m "GoLabel v0.1.0"
+git push origin v0.1.0
+```
+
+GitHub Actions runs the tests, builds the packages, and publishes a [GitHub Release](https://github.com/viewhang/GoLabel/releases) with:
+
+- `golabel-setup-0.1.0-amd64.exe` — Windows installer
+- `golabel-0.1.0-windows-amd64.exe` — Windows portable app, accompanied by `THIRD-PARTY-NOTICES.txt`
+- `golabel-0.1.0.dmg` — macOS universal app for Apple silicon and Intel
+
+The macOS app uses ad-hoc signing and is not notarized by Apple.
+
 ## License
 
 [MIT](LICENSE)

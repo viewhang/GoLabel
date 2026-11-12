@@ -81,6 +81,25 @@ go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -platform windows/amd64
 go test ./...
 ```
 
+## 发布
+
+首个版本为 **v0.1.0**，标签须与 `mygo.json` 中的 `version` 一致，并添加 `v` 前缀。
+
+提交并推送工作流与版本配置后，推送附注标签即可发布：
+
+```sh
+git tag -a v0.1.0 -m "GoLabel v0.1.0"
+git push origin v0.1.0
+```
+
+GitHub Actions 会运行测试、构建并发布 [GitHub Release](https://github.com/viewhang/GoLabel/releases)，包含：
+
+- `golabel-setup-0.1.0-amd64.exe` — Windows 安装版
+- `golabel-0.1.0-windows-amd64.exe` — Windows 单文件版，附带 `THIRD-PARTY-NOTICES.txt`
+- `golabel-0.1.0.dmg` — 同时支持 Apple 芯片和 Intel 的 macOS 通用版
+
+macOS 应用使用 ad-hoc 签名，尚未经过 Apple 公证。
+
 ## 许可证
 
 [MIT](LICENSE)
