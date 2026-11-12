@@ -1,77 +1,86 @@
 # GoLabel
 
-macOS 和 Windows 标签编辑器，界面使用 MyGo Native UI。
+English · [简体中文](README.zh-CN.md)
 
-需要 Go 1.27.3 或更新版本。在项目目录运行下面的命令。
+A native label editor for macOS and Windows, built with Go and [MyGo](https://github.com/egoist/mygo). Create product, packaging, inventory, and shipping labels, then print at actual size or export to PDF.
+
+![GoLabel label editor](docs/screenshots/editor-en.png)
+
+## Features
+
+- **Visual editing** — Drag and resize elements, enter exact dimensions in millimeters, and arrange your design with rulers, zoom, and alignment guides
+- **Text and graphics** — Add rich text, PNG/JPEG images, shapes, and lines; adjust fonts, alignment, text direction, fill, and stroke widths down to 0.1 mm
+- **Tables** — Merge cells, format cell text, and drag dividers to adjust row heights and column widths
+- **Barcodes** — Add Code 128 barcodes and QR codes
+- **Templates** — Start with built-in label designs or save your own to a local template library; `.golabel` files retain editable content and embedded images
+- **Document tabs** — Work on multiple labels in one window, reopen recent files, and recover unsaved work after an unexpected exit
+- **Print and export** — Preview labels, print at 203, 300, or 600 DPI, and export a single-page PDF matching the label dimensions
+- **Language and appearance** — English and Simplified Chinese, with light, dark, and system appearance options
+
+![GoLabel template library](docs/screenshots/templates-en.png)
+
+## Get started
+
+To run from source, install Go 1.27.3 or later, then run:
 
 ```sh
+git clone https://github.com/viewhang/GoLabel.git
+cd GoLabel
 go run .
 ```
 
-## 代码结构
+## Use GoLabel
 
-- `main.go`：应用启动入口
-- `internal/editor`：单窗口文档管理、编辑器、画布、标签数据、模板和设置
-- `internal/i18n`：中英文文案及翻译
-- `internal/platform`：各平台的条码生成、PDF 导出和系统外观
-- `internal/printing`：打印任务与 macOS、Windows 系统打印通道
-- `resources`：应用图标和打包资源
+1. Create a label with your paper dimensions and printer DPI, or choose a template
+2. Add elements from the left panel and edit their properties on the right; double-click text or a table cell to edit it on the canvas
+3. Save as `.golabel` to keep editing later, or choose **Save as template** from the Save menu to reuse the design
+4. Choose **Print** to preview and print, or **Export PDF** to save a PDF
 
-在项目目录运行 `go test ./...` 执行全部测试。
+To resize table cells, select the table and drag an internal divider. Drag an intersection to adjust both directions.
 
-## macOS 打包
+For printing, install your label printer's system driver and match its paper size to the label. Set the paper type for gap or black-mark media in the driver. When printing an exported PDF, use **Actual size / 100%**. Test one label first and check its dimensions and barcode readability.
 
-在 macOS 上运行以下命令，应用包输出到 `build/darwin-<架构>/`。
+## Build from source
+
+Run the following commands from the project directory. Packages are written to `build/`.
+
+### macOS
+
+Build on macOS for the current machine's architecture:
 
 ```sh
 go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -skip-dmg
 ```
 
-默认只编译当前机器架构（Apple 芯片为 `darwin-arm64`）。要让同一份应用同时支持 Apple 芯片和 Intel Mac，改用通用包：
+For a universal app supporting both Apple silicon and Intel Macs:
 
 ```sh
 go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -platform darwin/universal -skip-dmg
 ```
 
-产物在 `build/darwin-universal/GoLabel.app`，可直接拷贝到其他 Mac 使用。
+Output: `build/darwin-universal/GoLabel.app`.
 
-## Windows 打包
+### Windows
 
-在项目目录运行以下命令，可在 Windows 本机编译，也可在 macOS 上交叉编译。生成 Setup 需要 [NSIS](https://nsis.sourceforge.io/)：Windows 上 MyGo 会在需要时下载；macOS 上先运行 `brew install makensis`。
+Build on Windows or cross-compile from macOS:
 
 ```sh
 go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -platform windows/amd64
 ```
 
-产物在 `build/windows-amd64/`，适用于 Windows 10/11 64 位（Intel / AMD）：
+Output in `build/windows-amd64/`, for 64-bit Intel/AMD PCs running Windows 10/11:
 
-- `golabel-setup-0.1.0-amd64.exe`：安装到当前用户，提供开始菜单入口、卸载和 `.golabel` 文件关联
-- `GoLabel.exe`：单文件版，双击运行，无需安装
+- `golabel-setup-<version>-amd64.exe` — Installer with Start menu integration, an uninstaller, and `.golabel` file associations
+- `GoLabel.exe` — Portable executable
 
-只需要单文件 EXE 时，在打包命令末尾加上 `-skip-installer`，不需要 NSIS。转发单文件版时，请附上同目录的 `THIRD-PARTY-NOTICES.txt`。
+The installer requires NSIS. On macOS, install it with `brew install makensis`; on Windows, MyGo downloads it when needed. To build only the portable executable, append `-skip-installer`. Include `THIRD-PARTY-NOTICES.txt` when sharing the portable version.
 
-## 使用
+### Tests
 
-新建或打开的标签共用一个原生主窗口。切换标签时保留各页的内容、富文本选区与撤销记录、元素和单元格选区、画布缩放、平移及面板滚动位置，全屏状态不变。重复打开同一文件会切换到已有标签。点击标签栏的「+」可新建标签，橙色圆点标记未保存的修改。
+```sh
+go test ./...
+```
 
-保存、另存为和关闭标签页的菜单及快捷键作用于当前标签。关闭主窗口时逐一确认未保存的修改，取消后全部标签继续保留；关闭最后一个标签会留下空白标签。未保存内容在编辑暂停后保存到配置目录的 `label-recovery`，异常退出后下次启动恢复。
+## License
 
-选中表格后，拖动内部横线或竖线可调整行高、列宽，拖动交点可同时调整两个方向。表格外框尺寸保持不变，调整后的布局随 `.golabel` 文件保存并用于打印。
-
-左侧添加富文本、PNG/JPEG、Code 128 或二维码。文字属性支持格式、字体、字号、对齐和横排或竖排。拖动元素调整位置，拖动四角手柄调整大小，也可以在右侧输入毫米尺寸。保存为 `.golabel` 后可再次打开，图片会随模板保存。
-
-顶栏的「模板」打开模板库，内置商品、食品、零售、物流、资产等六种标签样式，选中后可在右侧预览并「使用模板」新建同规格标签。
-
-点击「打开」旁的下拉箭头可打开最近使用的标签文件。点击「保存」旁的下拉箭头，选择「保存为模板」，可将当前标签的尺寸和内容保存到本机模板库的「我的模板」。再次使用该模板时会新建一份可独立编辑的标签。
-
-顶栏的「设置」（macOS 也可以按 ⌘,）里有外观、界面语言、默认尺寸、默认打印分辨率、显示网格和对齐吸附。偏好保存在本机配置目录，macOS 为 `~/Library/Application Support/GoLabel/settings.json`，Windows 为 `%AppData%\GoLabel\settings.json`，下次启动继续生效。设置左侧导航里的「模板库」与顶栏的「模板」是同一页。
-
-外观可选「浅色」「深色」和「跟随系统」，切换后立即生效并保存。跟随系统时启动读取系统外观，运行中系统改换深色或浅色也会在一秒内跟上：macOS 读 `AppleInterfaceStyle`，Windows 读 `AppsUseLightTheme`，Linux 读 `GTK_THEME`。标签纸在两种外观下都保持白色，毕竟它代表实际打印出来的不干胶；只有面板、工具栏和画布底色随主题变化。
-
-深色配色按设计稿的深色画板取色：画布 `#0E1218`、面板 `#151A22`、成组控件与输入框 `#11161E`、卡片 `#171D26`、浮层 `#1B212B`、文字 `#E8EDF5` / `#A7B2C3` / `#7E8A9D`、强调 `#7C9AFF`、实心主按钮 `#3D5AFE`。深浅两套共用同一份 `palette` 结构，只换色值；`colors.Accent` 管文字与描边，`colors.Primary` 管实心按钮和开关，`colors.Paper` 固定白色。
-
-界面语言可选「简体中文」「English」和「跟随系统」（设置 → 通用 → 偏好 → 语言，右侧下拉选择），切换后界面文字、模板库里的模板名称和示例内容、原生菜单都随之改变，并记在配置文件的 `language` 字段里。「跟随系统」使用 MyGo 匹配系统首选语言，无法匹配时使用简体中文。界面文案集中在 `internal/i18n/messages.go`，每条包含中英文版本。
-
-打印前安装标签打印机的系统驱动，并在 GoLabel 设置实际标签宽高和打印头 DPI。点击「打印」，在系统对话框选择打印机和份数。Windows 会将标签宽高和 100% 缩放提交给驱动；如果驱动实际使用的纸张尺寸不匹配，会停止打印并提示在打印机属性中设置相同纸型。macOS 请在打印机属性中选用与标签匹配的纸型。间隙纸或黑标纸还需在驱动中选择对应纸张类型。首次先打一张，测量尺寸并扫描条码。
-
-「导出 PDF」会生成与标签同尺寸的单页文件，也可以用系统 PDF 阅读器按实际大小（100%）试印。
+[MIT](LICENSE)
