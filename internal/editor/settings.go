@@ -60,6 +60,8 @@ type preferences struct {
 	Theme string `json:"theme"`
 	// Language 保存界面语言：zh-Hans、en 或 system
 	Language string `json:"language"`
+	// RecentFonts 按最近使用顺序保存字体族名
+	RecentFonts []string `json:"recentFonts,omitempty"`
 }
 
 // defaultPreferences 返回首次启动时使用的偏好

@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -8,10 +9,12 @@ import (
 
 // TestFontDropdownOpensAcrossField 验证文字和单元格的字体框各处均可展开并应用字体
 func TestFontDropdownOpensAcrossField(t *testing.T) {
-	restoreFonts := makeLabelFonts
+	restoreFonts, restorePrefs := makeLabelFonts, prefs
 	t.Cleanup(func() {
 		makeLabelFonts = restoreFonts
+		prefs = restorePrefs
 		resetFontMenu()
+		savePreferences()
 	})
 	makeLabelFonts = func() fontMenu {
 		return fontMenu{
@@ -65,6 +68,11 @@ func TestFontDropdownOpensAcrossField(t *testing.T) {
 
 // TestFontDropdownSearch 验证中英文搜索、键盘确认、无匹配提示和取消后重新展开
 func TestFontDropdownSearch(t *testing.T) {
+	restore := prefs
+	t.Cleanup(func() {
+		prefs = restore
+		savePreferences()
+	})
 	fonts := fontMenu{
 		options: []string{defaultFontName(), "思源黑体", "阿里巴巴普惠体"},
 		familyByName: map[string]string{
@@ -111,6 +119,65 @@ func TestFontDropdownSearch(t *testing.T) {
 	}
 	if !tt.HasText("思源黑体") || tt.HasText("未找到字体") {
 		t.Fatal("取消搜索后重新打开未恢复完整字体列表")
+	}
+}
+
+// TestFontDropdownHistory 验证名称排序、历史置顶去重、重启恢复和切换语言
+func TestFontDropdownHistory(t *testing.T) {
+	t.Cleanup(savePreferences)
+	resetLanguage(t)
+	setAppLocale(string(languageZhHans))
+	prefs.RecentFonts = nil
+	fonts := fontMenu{
+		options: []string{"微软雅黑", "宋体", "阿里巴巴普惠体", "仿宋"},
+		familyByName: map[string]string{
+			"微软雅黑": "Microsoft YaHei", "宋体": "SimSun", "阿里巴巴普惠体": "Alibaba PuHuiTi", "仿宋": "FangSong",
+		},
+	}
+	if got := fonts.orderedOptions(); !slices.Equal(got, []string{"阿里巴巴普惠体", "仿宋", "宋体", "微软雅黑"}) {
+		t.Fatalf("字体未按拼音排序：%v", got)
+	}
+	selected := "宋体"
+	tt := ui.NewTester(func(c *ui.Context) {
+		ui.Row(c).Width(240).Children(func() { fontPicker(c, &selected, fonts) })
+	}, 300, 400)
+	for _, name := range []string{"微软雅黑", "宋体", "微软雅黑"} {
+		if err := tt.Click("选择字体"); err != nil {
+			t.Fatal(err)
+		}
+		if err := tt.Click(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wantHistory := []string{"Microsoft YaHei", "SimSun"}
+	if !slices.Equal(prefs.RecentFonts, wantHistory) {
+		t.Fatalf("字体历史未按最近使用去重：%v", prefs.RecentFonts)
+	}
+	prefs = defaultPreferences()
+	loadPreferences()
+	if !slices.Equal(prefs.RecentFonts, wantHistory) {
+		t.Fatalf("字体历史未在重启后恢复：%v", prefs.RecentFonts)
+	}
+	if got := fonts.orderedOptions(); !slices.Equal(got, []string{"微软雅黑", "宋体", "阿里巴巴普惠体", "仿宋"}) {
+		t.Fatalf("字体历史未置顶或其余名称排序有误：%v", got)
+	}
+	if err := tt.Click("选择字体"); err != nil {
+		t.Fatal(err)
+	}
+	tt.Key(0, ui.KeyEnter)
+	if selected != "微软雅黑" || !slices.Equal(prefs.RecentFonts, wantHistory) {
+		t.Fatal("下拉框首项不是最近使用的字体或重复记录了当前字体")
+	}
+	setAppLocale(string(languageEnglish))
+	english := fontMenu{
+		options:      []string{"SimSun", "Microsoft YaHei", "FangSong", "Alibaba PuHuiTi"},
+		familyByName: map[string]string{},
+	}
+	for _, name := range english.options {
+		english.familyByName[name] = name
+	}
+	if got := english.orderedOptions(); !slices.Equal(got, []string{"Microsoft YaHei", "SimSun", "Alibaba PuHuiTi", "FangSong"}) {
+		t.Fatalf("切换语言后历史字体丢失或英文名称未排序：%v", got)
 	}
 }
 

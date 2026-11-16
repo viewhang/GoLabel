@@ -1,12 +1,16 @@
 package editor
 
 import (
+	"cmp"
+	"slices"
 	"strings"
 	"sync"
 
 	"github.com/egoist/mygo/ui"
 	"github.com/pengh/GoLabel/internal/i18n"
 	"github.com/pengh/GoLabel/internal/platform"
+	"golang.org/x/text/collate"
+	textlanguage "golang.org/x/text/language"
 )
 
 const (
@@ -59,7 +63,26 @@ func makeFontMenu() fontMenu {
 	return menu
 }
 
-// fontPicker 显示整框可点击的字体搜索框并返回用户确认的选择
+// orderedOptions 将历史选择按最近使用置顶，其余按当前语言的显示名称排序
+func (fonts fontMenu) orderedOptions() []string {
+	options := slices.Clone(fonts.options)
+	recent := make(map[string]int, len(prefs.RecentFonts))
+	for i, family := range prefs.RecentFonts {
+		recent[family] = i + 1
+	}
+	collator := collate.New(textlanguage.Make(i18n.Locale()), collate.IgnoreCase)
+	slices.SortStableFunc(options, func(a, b string) int {
+		left := cmp.Or(recent[fonts.familyByName[a]], len(prefs.RecentFonts)+1)
+		right := cmp.Or(recent[fonts.familyByName[b]], len(prefs.RecentFonts)+1)
+		if order := cmp.Compare(left, right); order != 0 {
+			return order
+		}
+		return collator.CompareString(a, b)
+	})
+	return options
+}
+
+// fontPicker 显示整框可点击的字体搜索框，记录历史并返回用户确认的选择
 func fontPicker(c *ui.Context, selected *string, fonts fontMenu) bool {
 	field := ui.Row(c).Grow(1).MinWidth(0).Height(34)
 	query := ui.Local(field, "query", func() string { return "" })
@@ -81,7 +104,7 @@ func fontPicker(c *ui.Context, selected *string, fonts fontMenu) bool {
 			ui.Scroll(c.Key("options")).MaxHeight(260).Children(func() {
 				filter := strings.ToLower(strings.TrimSpace(*query))
 				matches := 0
-				for _, name := range fonts.options {
+				for _, name := range fonts.orderedOptions() {
 					if !strings.Contains(strings.ToLower(name), filter) &&
 						!strings.Contains(strings.ToLower(fonts.familyByName[name]), filter) {
 						continue
@@ -103,6 +126,10 @@ func fontPicker(c *ui.Context, selected *string, fonts fontMenu) bool {
 		if name, ok := picker.Chosen(); ok {
 			changed = *selected != name
 			*selected, *query = name, ""
+			family := fonts.familyByName[name]
+			recent := slices.DeleteFunc(slices.Clone(prefs.RecentFonts), func(previous string) bool { return previous == family })
+			prefs.RecentFonts = append([]string{family}, recent...)
+			savePreferences()
 		}
 	})
 	return changed
