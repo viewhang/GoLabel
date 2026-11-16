@@ -9,6 +9,38 @@ import (
 	"github.com/pengh/GoLabel/internal/platform"
 )
 
+// TestWindowsFontNames 验证系统字体的中文名称、英文切换和原始字体族映射
+func TestWindowsFontNames(t *testing.T) {
+	resetLanguage(t)
+	setAppLocale(string(languageZhHans))
+	chinese := makeFontMenu()
+	if got := platform.FontFamilyName("Arial"); got != "Arial" {
+		t.Fatalf("字体原名未保留：%q", got)
+	}
+	setAppLocale(string(languageEnglish))
+	english := makeFontMenu()
+	tested := 0
+	for _, font := range []struct{ family, name string }{
+		{"Microsoft YaHei", "微软雅黑"},
+		{"SimSun", "宋体"},
+		{"SimHei", "黑体"},
+	} {
+		if _, installed := chinese.nameByFamily[font.family]; !installed {
+			continue
+		}
+		tested++
+		if name := chinese.nameByFamily[font.family]; name != font.name {
+			t.Errorf("字体 %q 未显示中文名称：%q", font.family, name)
+		}
+		if chinese.familyByName[font.name] != font.family || english.nameByFamily[font.family] != font.family {
+			t.Errorf("字体 %q 的原始族名映射或英文切换不正确", font.family)
+		}
+	}
+	if tested == 0 {
+		t.Skip("系统未安装微软雅黑、宋体或黑体")
+	}
+}
+
 // TestWindowsLabelPDF 验证包含条码和二维码的实际尺寸 PDF 可以覆盖已有文件
 func TestWindowsLabelPDF(t *testing.T) {
 	g := &platform.Graphics{}

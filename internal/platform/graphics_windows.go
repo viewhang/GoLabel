@@ -20,9 +20,6 @@ type Graphics struct{}
 // OpenGraphics 创建 Windows 标签图形后端
 func OpenGraphics() (*Graphics, error) { return &Graphics{}, nil }
 
-// FontFamilyName 返回 DirectWrite 提供的字体族名
-func FontFamilyName(family string) string { return family }
-
 // SymbolImage 生成原始码模块并为 Code 128 保留两侧静区
 func (g *Graphics) SymbolImage(code128Barcode bool, value string) (image.Image, error) {
 	if !code128Barcode {
