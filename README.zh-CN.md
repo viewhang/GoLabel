@@ -49,13 +49,13 @@ go run .
 在 macOS 上构建当前机器架构的应用：
 
 ```sh
-go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -skip-dmg
+go run github.com/egoist/mygo/cmd/mygo@v0.10.0 build -skip-dmg
 ```
 
 同时支持 Apple 芯片和 Intel Mac 的通用包：
 
 ```sh
-go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -platform darwin/universal -skip-dmg
+go run github.com/egoist/mygo/cmd/mygo@v0.10.0 build -platform darwin/universal -skip-dmg
 ```
 
 产物：`build/darwin-universal/GoLabel.app`。
@@ -65,7 +65,7 @@ go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -platform darwin/universal -
 可在 Windows 本机编译，也可从 macOS 交叉编译：
 
 ```sh
-go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -platform windows/amd64
+go run github.com/egoist/mygo/cmd/mygo@v0.10.0 build -platform windows/amd64
 ```
 
 产物位于 `build/windows-amd64/`，适用于 Windows 10/11 的 64 位 Intel/AMD 电脑：

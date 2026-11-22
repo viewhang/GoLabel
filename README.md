@@ -49,13 +49,13 @@ Run the following commands from the project directory. Packages are written to `
 Build on macOS for the current machine's architecture:
 
 ```sh
-go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -skip-dmg
+go run github.com/egoist/mygo/cmd/mygo@v0.10.0 build -skip-dmg
 ```
 
 For a universal app supporting both Apple silicon and Intel Macs:
 
 ```sh
-go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -platform darwin/universal -skip-dmg
+go run github.com/egoist/mygo/cmd/mygo@v0.10.0 build -platform darwin/universal -skip-dmg
 ```
 
 Output: `build/darwin-universal/GoLabel.app`.
@@ -65,7 +65,7 @@ Output: `build/darwin-universal/GoLabel.app`.
 Build on Windows or cross-compile from macOS:
 
 ```sh
-go run github.com/egoist/mygo/cmd/mygo@v0.9.0 build -platform windows/amd64
+go run github.com/egoist/mygo/cmd/mygo@v0.10.0 build -platform windows/amd64
 ```
 
 Output in `build/windows-amd64/`, for 64-bit Intel/AMD PCs running Windows 10/11:

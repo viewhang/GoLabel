@@ -537,7 +537,7 @@ func printSettingCard(c *ui.Context, icon *ui.SVG, label, value string) {
 	})
 }
 
-// aboutPage 显示应用版本、运行环境和检查更新入口
+// aboutPage 显示应用与框架版本、运行环境和检查更新入口
 func (e *editor) aboutPage(c *ui.Context) {
 	ui.Column(c).Gap(0).Children(func() {
 		ui.Text(c.Key("title"), i18n.Tr("settings.about")).FontSize(20).FontWeight(650).TextColor(colors.Heading)
@@ -557,7 +557,7 @@ func (e *editor) aboutPage(c *ui.Context) {
 			BorderColor(colors.Divider).Background(colors.PanelAlt).Children(func() {
 			aboutRow(c.Key("version"), i18n.Tr("settings.version"), cmp.Or(mygo.App.Version(), "—"))
 			aboutRow(c.Key("runtime"), i18n.Tr("settings.runtime"), runtime.Version()+" · "+runtime.GOOS+"/"+runtime.GOARCH)
-			aboutRow(c.Key("ui"), i18n.Tr("settings.framework"), "MyGo Native UI 0.8.3")
+			aboutRow(c.Key("ui"), i18n.Tr("settings.framework"), "MyGo Native UI "+mygo.Version)
 			aboutRow(c.Key("format"), i18n.Tr("settings.format"), i18n.Tr("settings.formatValue"))
 			aboutRow(c.Key("license"), i18n.Tr("settings.license"), "MIT License")
 		})
