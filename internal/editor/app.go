@@ -6,6 +6,7 @@ import (
 
 	"github.com/egoist/mygo"
 	_ "github.com/egoist/mygo/locales/zh-Hans"
+	updaternative "github.com/egoist/mygo/plugins/updater/native"
 	"github.com/egoist/mygo/ui"
 	"github.com/pengh/GoLabel/internal/platform"
 	"github.com/pengh/GoLabel/internal/printing"
@@ -25,6 +26,7 @@ func Run() error {
 	if !mygo.App.RequestSingleInstanceLock() {
 		return nil
 	}
+	mygo.Use(updaternative.Plugin)
 	tabs := &documentTabs{graphics: graphics, printer: printer}
 	mygo.App.SetLanguages(string(languageZhHans), string(languageEnglish))
 	mygo.App.OnLocaleChanged(func(string) {

@@ -1,8 +1,13 @@
 {
   "name": "GoLabel",
   "identifier": "com.pengh.golabel",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "out": "build",
+  "updates": {
+    "github": "viewhang/GoLabel",
+    "publicKey": "z+5NoUTfplsk3La+/XA3koWt7133karbpC0TBFtl9p4=",
+    "deltas": 0
+  },
   "fileAssociations": [
     { "ext": ["golabel"], "name": "GoLabel 标签模板", "role": "Editor" }
   ],

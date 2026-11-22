@@ -36,7 +36,15 @@ jobs:
         run: brew install makensis
 
       - name: Build release packages
+        env:
+          MYGO_UPDATER_PRIVATE_KEY: ${{ secrets.MYGO_UPDATER_PRIVATE_KEY }}
         run: |
+          if [[ -z "$MYGO_UPDATER_PRIVATE_KEY" ]]; then
+            echo "::error::Set the MYGO_UPDATER_PRIVATE_KEY repository secret before releasing"
+            exit 1
+          fi
+          printf '## %s\n\n' "$RELEASE_VERSION" > CHANGELOG.md
+          git for-each-ref --format='%(contents)' "refs/tags/$GITHUB_REF_NAME" >> CHANGELOG.md
           mygo_version=$(go list -m -f '{{.Version}}' github.com/egoist/mygo)
           go run "github.com/egoist/mygo/cmd/mygo@$mygo_version" build -platform windows/amd64,darwin/universal
 
@@ -44,10 +52,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mv build/windows-amd64/GoLabel.exe "build/windows-amd64/golabel-${RELEASE_VERSION}-windows-amd64.exe"
           gh release create "$GITHUB_REF_NAME" \
             --verify-tag --title "GoLabel $GITHUB_REF_NAME" --notes-from-tag \
             "build/windows-amd64/golabel-setup-${RELEASE_VERSION}-amd64.exe" \
-            "build/windows-amd64/golabel-${RELEASE_VERSION}-windows-amd64.exe" \
+            build/windows-amd64/GoLabel.exe \
             build/windows-amd64/THIRD-PARTY-NOTICES.txt \
-            "build/darwin-universal/golabel-${RELEASE_VERSION}.dmg"
+            "build/darwin-universal/golabel-${RELEASE_VERSION}.dmg" \
+            "build/windows-amd64/golabel-${RELEASE_VERSION}-windows-amd64.tar.gz" \
+            build/windows-amd64/update-windows-amd64.json \
+            "build/darwin-universal/golabel-${RELEASE_VERSION}-darwin-universal.tar.gz" \
+            build/darwin-universal/update-darwin-universal.json

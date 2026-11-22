@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,6 +9,8 @@ import (
 	"runtime"
 	"slices"
 
+	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/plugins/updater"
 	"github.com/egoist/mygo/ui"
 	"github.com/pengh/GoLabel/internal/i18n"
 )
@@ -534,7 +537,7 @@ func printSettingCard(c *ui.Context, icon *ui.SVG, label, value string) {
 	})
 }
 
-// aboutPage 显示应用版本和运行环境
+// aboutPage 显示应用版本、运行环境和检查更新入口
 func (e *editor) aboutPage(c *ui.Context) {
 	ui.Column(c).Gap(0).Children(func() {
 		ui.Text(c.Key("title"), i18n.Tr("settings.about")).FontSize(20).FontWeight(650).TextColor(colors.Heading)
@@ -552,11 +555,15 @@ func (e *editor) aboutPage(c *ui.Context) {
 
 		ui.Column(c.Key("rows")).Margin(24, 0, 0, 0).Radius(12).BorderWidth(1).
 			BorderColor(colors.Divider).Background(colors.PanelAlt).Children(func() {
-			aboutRow(c.Key("version"), i18n.Tr("settings.version"), "0.1.0")
+			aboutRow(c.Key("version"), i18n.Tr("settings.version"), cmp.Or(mygo.App.Version(), "—"))
 			aboutRow(c.Key("runtime"), i18n.Tr("settings.runtime"), runtime.Version()+" · "+runtime.GOOS+"/"+runtime.GOARCH)
 			aboutRow(c.Key("ui"), i18n.Tr("settings.framework"), "MyGo Native UI 0.8.3")
 			aboutRow(c.Key("format"), i18n.Tr("settings.format"), i18n.Tr("settings.formatValue"))
 			aboutRow(c.Key("license"), i18n.Tr("settings.license"), "MIT License")
+		})
+
+		ui.Row(c.Key("updates")).Margin(12, 0, 0, 0).Children(func() {
+			outlineAction(c.Key("check"), i18n.Tr("settings.checkUpdates"), iconDownload, true, updater.CheckForUpdates)
 		})
 
 		ui.Text(c, i18n.Tr("settings.privacy")).

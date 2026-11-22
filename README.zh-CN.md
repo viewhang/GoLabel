@@ -83,20 +83,22 @@ go test ./...
 
 ## 发布
 
-首个版本为 **v0.1.0**，标签须与 `mygo.json` 中的 `version` 一致，并添加 `v` 前缀。
+GoLabel 会在后台检查更新。手动检查可打开「设置 → 关于 → 检查更新」。正在使用 v0.1.0 的用户需从 GitHub Releases 下载首个支持自动更新的版本。Windows 单文件版请保留 `GoLabel.exe` 文件名，并放在独立文件夹里，方便就地更新。
 
-提交并推送工作流与版本配置后，推送附注标签即可发布：
+发布前，将与 `mygo.json` 中 `updates.publicKey` 匹配的私钥设为仓库密钥 `MYGO_UPDATER_PRIVATE_KEY`，并在仓库外备份私钥。
+
+推送与 `mygo.json` 中 `version` 对应的 `v` 前缀附注标签。标签说明会显示在 GitHub 和应用内更新窗口。
 
 ```sh
-git tag -a v0.1.0 -m "GoLabel v0.1.0"
-git push origin v0.1.0
+git tag -a vX.Y.Z -F release-notes.md
+git push origin vX.Y.Z
 ```
 
-GitHub Actions 会运行测试、构建并发布 [GitHub Release](https://github.com/viewhang/GoLabel/releases)，包含：
+GitHub Actions 会运行测试，并在 [GitHub Releases](https://github.com/viewhang/GoLabel/releases) 发布以下下载文件及带签名的更新包。
 
-- `golabel-setup-0.1.0-amd64.exe` — Windows 安装版
-- `golabel-0.1.0-windows-amd64.exe` — Windows 单文件版，附带 `THIRD-PARTY-NOTICES.txt`
-- `golabel-0.1.0.dmg` — 同时支持 Apple 芯片和 Intel 的 macOS 通用版
+- `golabel-setup-<version>-amd64.exe` — Windows 安装版
+- `GoLabel.exe` — Windows 单文件版，附带 `THIRD-PARTY-NOTICES.txt`
+- `golabel-<version>.dmg` — 同时支持 Apple 芯片和 Intel 的 macOS 通用版
 
 macOS 应用使用 ad-hoc 签名，尚未经过 Apple 公证。
 

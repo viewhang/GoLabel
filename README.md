@@ -83,20 +83,22 @@ go test ./...
 
 ## Releases
 
-The first release is **v0.1.0**. The tag must match the `version` in `mygo.json`, prefixed with `v`.
+GoLabel checks for updates in the background. To check manually, open **Settings → About → Check for Updates**. If you have v0.1.0, download the first version that supports automatic updates from GitHub Releases. Keep the Windows portable app in its own folder as `GoLabel.exe` so it can update in place.
 
-After committing and pushing the workflow and version configuration, publish a release by pushing an annotated tag:
+Before releasing, set the `MYGO_UPDATER_PRIVATE_KEY` repository secret to the private key that matches `updates.publicKey` in `mygo.json`. Back up the private key outside the repository.
+
+Push an annotated tag matching `mygo.json`'s `version`, prefixed with `v`. The tag message supplies the release notes in GitHub and in the app.
 
 ```sh
-git tag -a v0.1.0 -m "GoLabel v0.1.0"
-git push origin v0.1.0
+git tag -a vX.Y.Z -F release-notes.md
+git push origin vX.Y.Z
 ```
 
-GitHub Actions runs the tests, builds the packages, and publishes a [GitHub Release](https://github.com/viewhang/GoLabel/releases) with:
+GitHub Actions tests and builds each [release](https://github.com/viewhang/GoLabel/releases) with the downloads below and signed update packages.
 
-- `golabel-setup-0.1.0-amd64.exe` — Windows installer
-- `golabel-0.1.0-windows-amd64.exe` — Windows portable app, accompanied by `THIRD-PARTY-NOTICES.txt`
-- `golabel-0.1.0.dmg` — macOS universal app for Apple silicon and Intel
+- `golabel-setup-<version>-amd64.exe` — Windows installer
+- `GoLabel.exe` — Windows portable app, accompanied by `THIRD-PARTY-NOTICES.txt`
+- `golabel-<version>.dmg` — macOS universal app for Apple silicon and Intel
 
 The macOS app uses ad-hoc signing and is not notarized by Apple.
 
