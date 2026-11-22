@@ -282,7 +282,7 @@ var messages = map[string]Text{
 	"error.printJob":       {"无法创建系统打印任务", "Cannot create the print job"},
 	"error.printDialog":    {"无法打开系统打印对话框（0x%08X）", "Cannot open the print dialog (0x%08X)"},
 	"error.printSettings":  {"无法设置标签打印尺寸，请检查打印机驱动的纸张设置", "Cannot apply the label size; check the printer driver's paper settings"},
-	"error.printPaperSize": {"驱动纸张为 %.1f × %.1f mm，与标签 %.1f × %.1f mm 不一致，请在打印机属性中设置相同纸型", "The driver uses %.1f × %.1f mm paper, but the label is %.1f × %.1f mm; select the matching paper size in printer properties"},
+	"error.printPaperSize": {"驱动仍使用 %.1f × %.1f mm，请在打印机属性中选择或添加 %.1f × %.1f mm 纸型", "The driver still uses %.1f × %.1f mm paper. Select or add a %.1f × %.1f mm paper size in printer properties"},
 	"error.printTask":      {"无法创建打印任务", "Cannot create the print job"},
 	"error.printStart":     {"无法开始打印页面", "Cannot start the print page"},
 	"error.printFinish":    {"无法完成打印页面", "Cannot finish the print page"},

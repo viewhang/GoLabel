@@ -3,8 +3,6 @@ package printing
 import (
 	"testing"
 	"unsafe"
-
-	"github.com/pengh/GoLabel/internal/platform"
 )
 
 // TestWindowsDevModeLayout 验证纸张设置字段与 Win32 DEVMODEW 的内存偏移一致
@@ -33,30 +31,31 @@ func TestWindowsDevModeLayout(t *testing.T) {
 	}
 }
 
-// TestWindowsPageSettings 验证标签尺寸覆盖旧纸型和缩放且保留份数及驱动参数
+// TestWindowsPageSettings 验证匹配纸型和自定义尺寸均覆盖旧纸型设置并保留其他驱动参数
 func TestWindowsPageSettings(t *testing.T) {
 	for _, test := range []struct {
-		page                  platform.Page
+		size                  winPaperDimensions
+		paperID               uint16
 		wantWidth, wantLength int16
+		wantFields            uint32
 	}{
-		{platform.Page{WidthMM: 40, HeightMM: 30}, 400, 300},
-		{platform.Page{WidthMM: 30, HeightMM: 40}, 300, 400},
-		{platform.Page{WidthMM: 40.14, HeightMM: 30.16}, 401, 302},
+		{winPaperDimensions{400, 300}, 257, 2100, 2970, winPaperFields},
+		{winPaperDimensions{300, 400}, 0, 300, 400, winPaperFields | winPaperDimensionsFields},
 	} {
 		mode := winDevMode{
-			size: 220, driverExtra: 32, fields: winFormNameField | 0x00000100,
+			size: 220, driverExtra: 32, fields: winFormNameField | winPaperDimensionsFields | 0x00000100,
 			orientation: 2, paperSize: 9, paperWidth: 2100, paperLength: 2970,
 			scale: 50, copies: 3, defaultSource: 7, printQuality: 203,
 		}
-		mode.setPage(test.page)
-		if mode.orientation != winPortrait || mode.paperSize != 0 || mode.scale != 100 {
+		mode.setPage(test.size, test.paperID)
+		if mode.orientation != winPortrait || mode.paperSize != int16(test.paperID) || mode.scale != 100 {
 			t.Fatal("打印设置未覆盖旧方向、纸型或缩放")
 		}
 		if mode.paperWidth != test.wantWidth || mode.paperLength != test.wantLength {
 			t.Fatalf("纸张宽高为 %d × %d，期望 %d × %d", mode.paperWidth, mode.paperLength, test.wantWidth, test.wantLength)
 		}
-		if mode.fields != winPaperFields|0x00000100 {
-			t.Fatal("未清除旧纸型名称或丢失了份数字段标记")
+		if mode.fields != test.wantFields|0x00000100 {
+			t.Fatal("未设置正确的纸型字段或丢失了份数字段标记")
 		}
 		if mode.size != 220 || mode.driverExtra != 32 || mode.copies != 3 || mode.defaultSource != 7 || mode.printQuality != 203 {
 			t.Fatal("修改纸型时覆盖了其他驱动参数")
